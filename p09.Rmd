@@ -1,5 +1,367 @@
----
-title: "Portfolio 9"
----
+# LAB: Large Language Models Lab {#lab14}
 
-> The projects should be numbered consecutively (i.e., in the order in which you began them), and should include for each project a description of the goal, the product (computer program, hand graph, computer graph, etc.), the data, and some interpretation. Reports must be reproducible and of high quality in terms of writing, grammar, presentation, etc.
+## Using LLMs for Qualitative Coding {.unnumbered}
+
+```{r bias_lab-setup, include=FALSE}
+library(tidyverse)
+library(knitr)
+options(
+  htmltools.dir.version = FALSE, # for blogdown
+  show.signif.stars = FALSE, # for regression output
+  digits = 2
+)
+knitr::opts_chunk$set(eval = FALSE)
+```
+
+> Note: This lab is in beta testing...
+
+Psychologists have been using qualitative coding for open-ended survey responses for a long time. This work is meaningful, but can get quite tedious at scale. What if an LLM can do that work for us?
+
+In this lab we'll be using OpenAI's API to automatically code 100 real open-ended survey responses from **HappyDB**, a publicly available dataset of 100,000+ crowd-sourced happy moments (Asai et al., 2018). Along the way we'll learn what an API can do that a chat interface cannot, how to control model behavior with parameters like temperature, and how to evaluate whether you'd trust this coding in a real study.
+
+The HappyDB dataset was collected by asking workers on Amazon Mechanical Turk: 
+*"What made you happy today? Reflect on the past 24 hours (or 3 months) and recall three actual events that happened to you that made you happy."*
+
+The dataset comes with two sets of category labels for each response:
+
+- `ground_truth_category` — assigned by human raters (majority vote of 5 raters)
+- `predicted_category` — assigned by the HappyDB authors' own machine learning classifier
+
+Your job is to add a third: the LLM's label. Then you'll compare all three.
+
+## Getting started {.unnumbered}
+
+Go to the course GitHub organization and locate the lab repo, which should be named something like `lab-14...`. Either Fork it or use the template. Then clone it in RStudio. First, open the R Markdown document `lab-14.Rmd` and Knit it. Make sure it compiles without errors. The output will be in the file markdown `.md` file with the same name.
+
+## Learning Goals
+
+- Make authenticated API calls to an LLM from R
+- Understand what parameters like `temperature` and `max_tokens` do
+- Loop API calls over rows of a real dataset
+- Request and parse structured JSON output
+- Critically evaluate AI-assisted qualitative coding against human ground truth
+
+## Setup
+
+### API Key
+You'll need an OpenAI API key from the OpenAI Platform. If this is your first time, you will have to put $5 into your account. Expect to spend less than $0.05 for this lab.
+**Do NOT hardcode your key in this file, and do not push your key to GitHub!**
+Github will automatically notify you if you accidentally push your key, but doing so is dangerous. You don't want people accessing your API key (and the money on your account)!
+
+So, we can set it as an environment variable using the line below. Replace "your-key-here" with your API key.
+
+```{r set-api-key, eval=FALSE}
+Sys.setenv(OPENAI_API_KEY = "your-key-here")
+```
+
+Importantly, doing so will make sure your API key lives only in your environment and not in any of the files.
+
+```{r set-api-key-real, echo=FALSE}
+# If you have a .Renviron or have already set the key in your session, 
+# this will retrieve it silently
+api_key <- Sys.getenv("OPENAI_API_KEY")
+```
+
+### Packages {.unnumbered}
+
+```{r load-packages}
+library(tidyverse)
+library(httr2)
+library(jsonlite)
+```
+
+The httr2 package will allow us to interact with web APIs.
+
+
+### The data {.unnumbered}
+
+HappyDB is freely available on GitHub. We can load it directly:
+
+```{r load-data}
+hm <- read_csv(
+  "https://raw.githubusercontent.com/megagonlabs/HappyDB/master/happydb/data/cleaned_hm.csv",
+  show_col_types = FALSE
+)
+
+glimpse(hm)
+```
+
+Variables:
+
+- `hmid`: unique ID for each happy moment
+- `wid`: worker ID (links to demographic.csv)
+- `reflection_period`: whether the worker was asked about the past 24h or 3m (3 months)
+- `original_hm`: the raw text exactly as the worker typed it
+- `cleaned_hm`: spell-corrected version (the one we use)
+- `modified`: whether the spell corrector changed anything (TRUE/FALSE)
+- `num_sentence`: number of sentences in the happy moment
+- `ground_truth_category`: human majority-vote label (lots of NAs because only ~15,000 of 100,000 were human-labeled)
+- `predicted_category`: the HappyDB classifier's label for all rows
+
+### Part 1: Exploring the data {.unnumbered}
+
+1. How many rows does the full dataset have? What does each row represent? 
+
+
+2. How many rows has a human ground truth label? What fraction of the full dataset is that?
+
+Now, let's take a random sample of 100 rows that *have a ground truth label*. Use `set.seed(1)` so we all work with the same sample.
+
+```{r sample-data}
+set.seed(1)
+
+hm_sample <- hm %>%
+  filter(!is.na(ground_truth_category)) %>%
+  slice_sample(n = 100)
+```
+
+3. The seven categories are: *achievement, affection, bonding, enjoy\_the\_moment, exercise, leisure, nature*. Look at the first 5 rows. Do the human labels seem reasonable to you? Are there any you would have coded differently?
+
+```{r preview-text}
+hm_sample %>%
+  select(cleaned_hm, ground_truth_category, predicted_category) %>%
+  head(5)
+```
+
+
+### Part 2: First API Call {.unnumbered}
+
+Below we define a function that sends a single happy moment to the OpenAI API and returns the raw response. Read through it carefully to see how things work. We'll be using gpt-4.1-mini because it is relatively cheap. Feel free to use different models to see if there are notable changes in performance! You can see their pricings and models if you google "OpenAI API Pricing".
+
+```{r api-function}
+call_openai <- function(text, temperature = 0, api_key = Sys.getenv("OPENAI_API_KEY")) {
+  
+  prompt <- paste0(
+    "You are helping to code open-ended survey responses.\n\n",
+    "Classify the following happy moment into exactly one of these seven categories:\n",
+    "achievement, affection, bonding, enjoy_the_moment, exercise, leisure, nature\n\n",
+    "Definitions:\n",
+    "- achievement: completing a task or goal with extra effort\n",
+    "- affection: meaningful interaction with family, loved ones, or pets\n",
+    "- bonding: meaningful interaction with friends or colleagues\n",
+    "- enjoy_the_moment: being aware of or savoring the present environment\n",
+    "- exercise: intentional physical activity or workout\n",
+    "- leisure: recreational activity done regularly for pleasure\n",
+    "- nature: being outdoors or in nature\n\n",
+    "Respond ONLY with valid JSON in this exact format, no other text:\n",
+    "{\"category\": \"<category>\", \"confidence\": \"<high|medium|low>\"}\n\n",
+    "Happy moment: ", text
+  )
+  
+  response <- request("https://api.openai.com/v1/chat/completions") %>%
+    req_headers(
+      "Authorization" = paste("Bearer", api_key),
+      "Content-Type"  = "application/json"
+    ) %>%
+    req_body_json(list(
+      model       = "gpt-4.1-mini",
+      temperature = temperature,
+      max_tokens  = 50, # maximum output tokens
+      messages    = list(
+        list(role = "user", content = prompt)
+      )
+    )) %>%
+    req_perform() %>% 
+    resp_body_json()
+  
+  response
+}
+```
+
+Now call the function on a single happy moment and inspect the response:
+
+```{r first-call}
+example_text <- hm_sample$cleaned_hm[1]
+cat("Happy moment:", example_text, "\n\n")
+
+response <- call_openai(example_text)
+
+# The model's reply is nested inside the response object
+raw_reply <- response$choices[[1]]$message$content
+raw_reply
+
+# Token usage
+response$usage$prompt_tokens
+response$usage$completion_tokens
+```
+
+4. What did the model return? Does the category seem right to you? Look at the `usage` object. If each completion uses roughly this many tokens, and `gpt-4.1-mini` costs $0.40 per million input tokens and $1.60 per million output tokens, roughly how much would it cost to run all 100 rows?
+
+### Part 3: Playing Around With Temperature {.unnumbered}
+
+`temperature` controls how deterministic the model's output is. At temperature = 0 the model almost always picks the highest-probability token, giving you identical outputs every time. Higher temperatures introduce randomness — useful for creative tasks like brainstorming or text generation, but undesirable for coding tasks where you want reproducibility. For classification specifically, temperature has little effect when the model is confident — which is actually reassuring for our purposes. For the rest of this lab we use temperature=0.
+
+
+Run the same happy moment 5 times at `temperature = 0`:
+
+```{r temp-zero}
+temp0_results <- map_chr(1:5, function(i) {
+  r <- call_openai("my dad presented me a new laptop surprisingly on my birthday", temperature = 0)
+  r$choices[[1]]$message$content
+})
+
+temp0_results
+```
+
+Now run it 10 times at `temperature = 2`:
+
+```{r temp-two}
+temp2_results <- map_chr(1:10, function(i) {
+  r <- call_openai("my dad presented me a new laptop surprisingly on my birthday", temperature = 2)
+  r$choices[[1]]$message$content
+})
+
+temp2_results
+```
+
+5. Do you notice anything different? Since LLMs produce different output for each run, there might not be differences in your runs. Even so, based on the concept of `temperature`, which setting might be most fit for our task? Why?
+
+### Part 4: Batch Processing {.unnumbered}
+
+For the rest of this lab we'll use `temperature = 0`. We will now be coding the 100 rows
+
+Now loop the API call over all 100 rows. This is the core thing an API can do that a chat interface cannot: process data query by query at scale.
+
+The loop includes a short pause between calls (`Sys.sleep(0.5)`) to avoid hitting OpenAI's rate limits, and wraps each call in `tryCatch()` so a single failed call doesn't crash the whole loop. This might take a few minutes (2-3) to run. Take a break!
+
+```{r batch-process}
+# Create an empty list to store results, one slot per row
+results <- vector("list", nrow(hm_sample))
+
+# Loop over every row in our sample
+for (i in seq_len(nrow(hm_sample))) {
+  
+  tryCatch({
+# calls API with the i-th happy moment
+    r <- call_openai(hm_sample$cleaned_hm[i], temperature = 0)
+# extracts text content
+    raw <- r$choices[[1]]$message$content
+# Parses JSON into an R list
+    parsed <- fromJSON(raw)
+# Stores result into the results list
+    results[[i]] <- parsed
+# If anything above failed, store NAs instead so the row isn't lost
+  }, error = function(e) {
+# The <<- assigns to results in the parent environment (outside the function)
+    results[[i]] <<- list(category = NA, confidence = NA)
+  })
+  
+  Sys.sleep(0.5)
+}
+
+# Bind results into the sample dataframe
+hm_coded <- hm_sample %>%
+  mutate(
+    llm_category   = map_chr(results, ~ .x$category %||% NA_character_),  
+    # %||% returns right side if left is NULL
+    llm_confidence = map_chr(results, ~ .x$confidence %||% NA_character_)
+  )
+
+glimpse(hm_coded)
+```
+
+6. Did any calls fail (i.e., are there NAs in `llm_category`)? If so, why might a call fail? What does `tryCatch()` do and why is it important when making many API calls in a loop?
+
+### Part 5: Evaluating the Coding {.unnumbered}
+
+Now let's see how well the LLM did. We have three codings to compare:
+
+- `ground_truth_category`: human majority-vote labels
+- `predicted_category`: HappyDB authors' logistic regression classifier
+- `llm_category`: your LLM
+
+We can first compare the LLM with the ground truth
+
+```{r llm-vs-human}
+hm_coded %>%
+  summarize(
+    accuracy = mean(llm_category == ground_truth_category, na.rm = TRUE)
+  )
+```
+
+```{r confusion-matrix}
+table(
+  human = hm_coded$ground_truth_category,
+  llm   = hm_coded$llm_category
+)
+```
+
+7. What is the LLM's overall accuracy against human labels? Look at the confusion matrix. Which categories does it get right most reliably? Which does it confuse most often?
+
+Then, compare the LLM labels against the HappyDB Classifer using a similar code to the previous exercise.
+
+8. Does the LLM agree more with the human labels or with the HappyDB classifier? What might explain the difference?
+
+The HappyDB paper reported that their classifier struggled most with enjoy_the_moment (F1 = 54%) and nature (F1 = 63%).
+
+```{r hard-categories}
+hm_coded %>%
+  group_by(ground_truth_category) %>%
+  summarize(
+    n        = n(),
+    llm_accuracy = mean(llm_category == ground_truth_category, na.rm = TRUE)
+  ) %>%
+  arrange(llm_accuracy)
+```
+
+9. Does your LLM show the same pattern for enjoy_the_moment? (Nature may not have enough observations in your sample to say anything meaningful.)
+
+
+We can also compute the overall F1 scores, which looks at accuracy accounting for false positives / false negatives, and see if their logistic regression classifier did better than the LLMs. Here is a function to "manually" calculate the F1 scores.
+
+```{r}
+macro_f1 <- function(true, pred) {
+  categories <- unique(true)
+  
+  f1_scores <- map_dbl(categories, function(cat) {
+    tp <- sum(pred == cat & true == cat)
+    fp <- sum(pred == cat & true != cat)
+    fn <- sum(pred != cat & true == cat)
+    
+    precision <- tp / (tp + fp)
+    recall    <- tp / (tp + fn)
+    f1        <- 2 * (precision * recall) / (precision + recall)
+    
+    f1
+  })
+  
+  mean(f1_scores, na.rm = TRUE)
+}
+
+# LLM vs human
+macro_f1(hm_coded$ground_truth_category, hm_coded$llm_category)
+
+# HappyDB classifier vs human
+macro_f1(hm_coded$ground_truth_category, hm_coded$predicted_category)
+```
+
+10. Which did better, the LLM or the classifier? Are you surprised by this? (remember, this paper was out back in 2018)
+
+
+We also collected data on the LLM Confidence scores (i.e., the LLM's subjective confidence in its labeling). Let's see if confidence predicts accuracy.
+
+```{r confidence-accuracy}
+hm_coded %>%
+  group_by(llm_confidence) %>%
+  summarize(
+    n        = n(),
+    accuracy = mean(llm_category == ground_truth_category, na.rm = TRUE)
+  )
+```
+
+11. Does the LLM's stated confidence predict its accuracy? How might collecting this confidence data help with qualitative coding involving human-in-the-loop?
+
+### Part 6: Reflection
+
+12. The seven categories were chosen by the HappyDB authors based on positive psychology research and the contents of the data, but the paper doesn't describe a rigorous qualitative methodology for arriving at them. What might be another way to come up with the categories? How might it be better or worse?
+
+13. Imagine you are a psychology researcher who wants to use LLM coding to analyze open-ended responses in a published study. Based on what you observed in this lab, what do you think of using LLMs for qualitative coding? Can their responses be trusted? Or should we leave this task to humans instead? 
+
+
+## References
+
+Asai, A., Evensen, S., Golshan, B., Halevy, A., Li, V., Lopatenko, A., Stepanov, D., Suhara, Y., Tan, W.-C., & Xu, Y. (2018). HappyDB: A corpus of 100,000 crowdsourced happy moments. *Proceedings of LREC 2018*.
+
+
+
+

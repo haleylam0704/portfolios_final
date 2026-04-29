@@ -1,5 +1,221 @@
 ---
-title: "Portfolio 4"
+title: "Portfolio 4: A DAG Structure for Social Media's Impact on Mental Health"
+author: "Haley Lam"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    theme: cosmo
 ---
 
-> The projects should be numbered consecutively (i.e., in the order in which you began them), and should include for each project a description of the goal, the product (computer program, hand graph, computer graph, etc.), the data, and some interpretation. Reports must be reproducible and of high quality in terms of writing, grammar, presentation, etc.
+## Overview
+The goal of this portfolio is to unpack a causal structure as informed by the literature, intended for readers who want the complete picture. We'll start from a simple DAG to more complicated structures to show the value of thinking through a causal structure before running analyses. There will be three panels, each with a threat to causal inference:
+Panel A: Two unmeasured confounders and observed covariates.
+Panel B: Conditioning on a Collider
+Panel C: Conditioning on a Mediator
+
+Let's do it!
+
+### Load Libraries (there's no data to load!)
+
+```{r}
+library(ggplot2)
+library(patchwork)
+library(dagitty)
+```
+
+## Section 1: Using "daggity" to draw and analyze DAGs
+
+Daggity is a tool (and a package in R) that will help us understanding our hypothesized underlying causal structure. They have a website, but since we're in R, we can use their package!
+
+### DAG #1: Unmeasured Confounding
+
+These are the variables we'll be dealing with: 
+SM  = Social media use (treatment)
+MH  = Mental health outcome (depression/wellbeing)
+U1  = Neuroticism / pre-existing mental health (unobserved latent)
+      Predicts heavier SM use (emotional regulation, boredom avoidance)
+      AND worse MH outcomes (pre-existing vulnerability). 
+U2  = SES / family environment (unobserved latent)
+      Lower SES predicts higher SM use (indoor leisure) AND worse MH (material hardship, neighborhood stress). 
+      There are proxies in W but they're not fully captured.
+W   = Observed covariates (age, sex, race, parental education)
+      Standard controls in the correlational literature. Reduce bias from demographic variation but do NOT close the U1 or U2 backdoor paths.
+
+#### Daggity for Dag #1
+
+Unmeasured confounding is something psychologists are aware about, and possibly the main reason why psychologists don't trust in causality with observational data. Here, we show how it might appear in a DAG. We first define the variables (also called nodes), then draw the arrows (or edges).
+
+```{r}
+dag_A <- dagitty('dag {
+  SM 
+  MH 
+  U1 [latent]
+  U2 [latent]
+  W
+  
+  SM -> MH
+  U1 -> SM
+  U1 -> MH
+  U2 -> SM
+  U2 -> MH
+  W  -> SM
+  W  -> MH
+}')
+```
+
+What we did above was define our causal structure. There are many ways to do this, including forks (SM <- W -> MH) and chains (we don't have one here, but it'd look something like A -> B -> C), but what I did above was the simplest way, which defines causal directions with just pairs of variables. Now, we'll use the "adjustmentSets" function to "test" our DAG! The output tells us what we must control for.
+
+We can first test a minimal solution. We should get an empty response, since we have unmeasured (latent) confounders that cannot be controlled for. 
+```{r}
+print(adjustmentSets(dag_A, "SM", "MH", type = "minimal")) 
+```
+
+This means that there is no solution to our issue of unmeasured confounders! We're doomed! This is extremely useful to know, since we can control for our observed confounders (W) all we want, but this output tells us that with the data we currently have, an unbiased regression is impossible.
+
+Now, let's see what we have to control to get an unbiased regression (i.e., block all backdoor paths). We can do this with the "type = "all"" setting.
+```{r}
+print(adjustmentSets(dag_A, "SM", "MH", type = "all"))
+```
+
+The ouput returned all adjustment sets possible. As we can see, we must adjust for U1, U2, AND W. Adjusting for only one or two of those would not work. In this first case, we learned that given our DAG has potential unobserved confounders, we have a biased regression if we simply condition on the observed confounder (i.e., the "try out best to control all we have" solution does not work!)
+
+### DAG #2: Collider Bias
+Here are our variables:
+SM  = Social media use
+MH  = Mental health
+U   = Unobserved background confounders (neuroticism, pre-existing MH)
+C   = In-person social interaction (the hypothesized collider)
+
+C is a collider because both X and Y affect it:
+SM → C : Substitution — heavy social media use displaces time that would otherwise be spent face-to-face (more SM → less in-person)
+MH → C : Social withdrawal — depression and anxiety reduce motivation and ability to engage in in-person social activities (worse MH → less in-person interaction)
+
+Since C has two causes on the path of interest (SM and MH), C is a collider on the path SM → C ← MH. The standard DAG result: conditioning on a collider *opens* a path between its causes. So including C as a covariate does not "control for" in-person socializing in a neutral way, but introduces a spurious relationship between SM and MH.
+
+#### Daggity for DAG #2
+
+Again, let's first define our DAG.
+
+```{r}
+dag_B <- dagitty('dag {
+  SM 
+  MH 
+  U  [latent]
+  C  
+  
+  SM -> MH
+  U  -> SM
+  U  -> MH
+  SM -> C
+  MH -> C
+}')
+```
+
+We can do the same thing here with seeing minimal adjustment sets for SM->MH. Meaning, what can we control for given the data we have? 
+```{r}
+print(adjustmentSets(dag_B, "SM", "MH", type = "minimal"))
+```
+
+Well, nothing! There's nothing we can do! What if we had all data? What would we control for?
+```{r}
+print(adjustmentSets(dag_B, "SM", "MH", type = "all"))
+```
+
+Notice here that "C" is not in the output! This means that there is no case in which controlling for the collider would produce an unbiased estimator. 
+
+
+Now, we can more clearly see the issue with controlling for a collider here. We can compare the before and after of 1) not controlling for the collider and 2) controlling for the collider.
+```{r}
+paths(dag_B, "SM", "MH", Z = c("U"))
+
+paths(dag_B, "SM", "MH", Z = c("U", "C"))
+```
+We can see the in the first equation, SM -> C <- MH, is blocked (or closed). This is a good thing. We correctly control for U, and our only open path is the direct effect of SM -> MH. This is perfect!
+
+However, in the second one, we opened the path SM -> C <- MH. This introduces bias and we now have an opened backdoor path! We now have some additional spurrious association betweeen SM and MH. 
+
+Another thing we can do to more clearly show this is with dagitty's simulations. Here, we can define the true effect and observe what happens when we control for things. Let's say SM affects MH by 0.30 units. This is the SM -> MH path, with beta = 0.30.
+
+```{r}
+dag_B_sim <- dagitty('dag {
+  U 
+  SM [exposure]
+  MH [outcome]
+  C
+
+  U -> SM [beta=0.4]
+  U -> MH [beta=0.4]
+  SM -> MH [beta=0.3]
+  SM -> C  [beta=0.4]
+  MH -> C  [beta=0.4]
+}')
+
+set.seed(123)
+fake_data <- simulateSEM(dag_B_sim, N = 10000)
+```
+
+Now, here's the first test, which controls for U (unobserved covariate. We pretend we can control for it...). 
+```{r}
+model_perfect <- lm(MH ~ SM + U, data = fake_data)
+coef(model_perfect)
+```
+
+Here, the estimate for SM's effect is 0.289. Pretty close to our defined 0.30!
+Now, let's test controlling for U AND for the collider (in-person social interaction).
+```{r}
+model_mistake <- lm(MH ~ SM + U + C, data = fake_data)
+coef(model_mistake)
+```
+
+The estimate of social media's effect drops to 0.077! Potentially a null effect now, because we controlled for a collider. We know (since we defined it) that the true effect is 0.30, but our regression is biased. Don't control for colliders!!!!
+
+### DAG #3: Controlling for a Mediator
+Variables:
+SM = Social media use
+Sl = Sleep disruption (mediator on the SM -> MH path)
+MH = Mental health
+U = Background confounders of SM and MH (unobserved)
+Uc = Confounders specific to sleep AND mental health (unobserved)
+- Examples: chronic stress (disrupts sleep AND worsens MH directly); physical health conditions; major life events unrelated to SM
+
+The mediated path SM → Sleep → MH captures the "phone in the bedroom" effect:
+SM → Sleep: Blue-light exposure affects sleep; bedtime scrolling delays sleep onset.
+Sleep → MH: Poor sleep quality and duration are strong predictors of depression and anxiety severity.
+
+```{r}
+dag_C <- dagitty('dag {
+  SM 
+  Sl 
+  MH 
+  U  [latent]
+  Uc [latent]
+  
+  SM -> Sl
+  Sl -> MH
+  SM -> MH
+  U  -> SM
+  U  -> MH
+  Uc -> Sl
+  Uc -> MH
+}')
+```
+
+These are all our paths:
+```{r}
+print(paths(dag_C, "SM", "MH")$paths)
+
+```
+
+Let's see what we can do to close our backdoor paths for SM to MH. 
+```{r}
+print(adjustmentSets(dag_C, "SM", "MH", type = "all"))
+
+```
+
+Either one of those solutions work. We can control for U or both U and Uc! 
+
+Here are the two problems with controlling for Sleep:
+1. Blocks the indirect path SM → Sleep → MH, so the regression coefficient on SM estimates only the direct path, underestimating total effect.
+2. To complicate things, Uc confounds Sleep and MH. In our example, sleep is a collider for SM and Uc. Once we condition on Sleep (a descendant of both SM and Uc), we open what's called an "M-bias path": SM → Sleep ← Uc → MH. The "direct effect" estimate of SM on MH after conditioning on Sleep is now affected by Uc. By trying to block a mediator (to observe direct effects), we now turned sleep into an active collider, opening a backdoor path!
+
+

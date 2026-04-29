@@ -9,14 +9,16 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
+<meta name="author" content="Haley Lam" />
 
+<meta name="date" content="2026-04-29" />
 
-<title>Portfolio 6</title>
+<title>Simulation for the Effects of Social Media on Mental Health (Pt 1)</title>
 
-<script src="site_libs/header-attrs-2.30/header-attrs.js"></script>
+<script src="site_libs/header-attrs-2.31/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link href="site_libs/bootstrap-3.3.5/css/bootstrap.min.css" rel="stylesheet" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
 <script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
@@ -278,6 +280,9 @@ $(document).ready(function () {
 <li>
   <a href="p10.html">Portfolio 10</a>
 </li>
+<li>
+  <a href="p11.html">Portfolio 11</a>
+</li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         
@@ -290,18 +295,235 @@ $(document).ready(function () {
 
 
 
-<h1 class="title toc-ignore">Portfolio 6</h1>
+<h1 class="title toc-ignore">Simulation for the Effects of Social Media
+on Mental Health (Pt 1)</h1>
+<h4 class="author">Haley Lam</h4>
+<h4 class="date">2026-04-29</h4>
 
 </div>
 
 
-<blockquote>
-<p>The projects should be numbered consecutively (i.e., in the order in
-which you began them), and should include for each project a description
-of the goal, the product (computer program, hand graph, computer graph,
-etc.), the data, and some interpretation. Reports must be reproducible
-and of high quality in terms of writing, grammar, presentation, etc.</p>
-</blockquote>
+<div id="overview" class="section level3">
+<h3>Overview</h3>
+<p>This is a simulation of what happens to outputs with typical OLS
+regression on cross-sectional data versus a quasi-experimental design
+(Difference-in-differences). This DiD design is heavily inspired by
+Braghieri et al. (2022), though some changes were made to simplify their
+design for this lab. The DiD framework follows Baker et al. (2025),
+which is a (long, 80+ page) practitioner’s guide for DiD. Monte carlo
+simulations follow Cunningham (2021)’s approach to teaching about causal
+inference.</p>
+</div>
+<div id="set-envrionment-and-set-parameters" class="section level2">
+<h2>1. Set Envrionment and Set Parameters</h2>
+<pre class="r"><code>library(ggplot2)
+library(tidyverse)</code></pre>
+<pre class="r"><code>N          &lt;- 200     # Total colleges
+delta      &lt;- 0.085   # True causal effect
+gamma_u    &lt;- 0.30    # Unobserved covariate - OLS has no data for this
+gamma_w    &lt;- 0.15    # Observed covariate - OLS will &#39;control&#39; for this
+time_trend &lt;- 0.05    # Common time trend</code></pre>
+</div>
+<div id="make-some-data" class="section level2">
+<h2>2. Make Some Data!</h2>
+<p>The idea from Braghieri et al. (2022): Facebook was (randomly) rolled
+out to colleges at different times. We can use this exogenous shock to
+examine the effects of its availability on mental health outcomes.
+Therefore, our unit analysis here will be colleges (i.e., average
+college pre vs. post facebook)</p>
+<pre class="r"><code>set.seed(123)
+
+# Create the 200 colleges and their traits
+colleges &lt;- tibble(
+  college = 1:N,
+  Treat   = rep(c(1, 0), each = N / 2), # assign half treatment (1), half control (0)
+  U       = rnorm(N), # random numbers in normal dist. for the covariates
+  W       = rnorm(N) 
+)
+
+df &lt;- colleges %&gt;%
+  crossing(period = 1:2) %&gt;% # Duplicate each college to have both time 1 and time 2
+        mutate(
+                Post = as.integer(period == 2),
+                D    = Treat * Post,  # 1 only for treated colleges in the post-period
+                # Generate random error terms
+                e_sm = rnorm(n(), mean = 0, sd = 0.5),
+                e_mh = rnorm(n(), mean = 0, sd = 0.5),
+                # Generate Social Media (SM) use
+                SM = gamma_w * W + gamma_u * U + D + e_sm,
+                # Generate Mental Health (MH) outcomes (higher = worse)
+                MH = delta * SM + gamma_u * U + gamma_w * W + (time_trend * Post) + e_mh
+  )
+
+head(df)</code></pre>
+<pre><code>## # A tibble: 6 × 11
+##   college Treat      U      W period  Post     D    e_sm    e_mh     SM      MH
+##     &lt;int&gt; &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;  &lt;int&gt; &lt;int&gt; &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;  &lt;dbl&gt;   &lt;dbl&gt;
+## 1       1     1 -0.560  2.20       1     0     0 -0.0368  0.178   0.125  0.350 
+## 2       1     1 -0.560  2.20       2     1     1 -0.584  -0.329   0.577 -0.0683
+## 3       2     1 -0.230  1.31       1     0     0 -0.317   0.428  -0.190  0.539 
+## 4       2     1 -0.230  1.31       2     1     1 -0.0144  0.576   1.11   0.849 
+## 5       3     1  1.56  -0.265      1     0     0  0.335   0.138   0.763  0.631 
+## 6       3     1  1.56  -0.265      2     1     1 -0.825   0.0721  0.603  0.601</code></pre>
+</div>
+<div id="examine-the-differences-in-differences-by-four-means-table"
+class="section level2">
+<h2>3. Examine the Differences in Differences by Four-Means Table</h2>
+<p>First, we will calculate the Difference-in-Differences “by hand”
+using a simple Four-Means table (Baker et al., 2025). Then, we will
+compare that result against standard OLS regressions to see why
+cross-sectional data fails us here.</p>
+<pre class="r"><code># 1. Four-Means Table (Baker et al., 2025)
+# a simple table that shows means for each group and period
+four_means &lt;- df %&gt;%
+  mutate(
+    Group  = ifelse(Treat == 1, &quot;Treated&quot;, &quot;Control&quot;),
+    Period = ifelse(Post == 1, &quot;Post&quot;, &quot;Pre&quot;)
+  ) %&gt;%
+  group_by(Group, Period) %&gt;%
+  summarize(mean_MH = mean(MH), .groups = &quot;drop&quot;) %&gt;%
+  pivot_wider(names_from = Period, values_from = mean_MH) %&gt;%
+  mutate(Change_Over_Time = Post - Pre)
+
+print(four_means)</code></pre>
+<pre><code>## # A tibble: 2 × 4
+##   Group     Post      Pre Change_Over_Time
+##   &lt;chr&gt;    &lt;dbl&gt;    &lt;dbl&gt;            &lt;dbl&gt;
+## 1 Control 0.0224 -0.00564           0.0280
+## 2 Treated 0.208   0.0654            0.142</code></pre>
+<pre class="r"><code># 2. Calculate DiD Estimate From the Table
+delta_T &lt;- four_means$Change_Over_Time[four_means$Group == &quot;Treated&quot;]
+delta_C &lt;- four_means$Change_Over_Time[four_means$Group == &quot;Control&quot;]
+did_manual &lt;- delta_T - delta_C
+
+round(did_manual, 4) # This is the estimated causal effect from the DiD, descriptively. </code></pre>
+<pre><code>## [1] 0.1141</code></pre>
+<p>We got an estimate of 0.114. That’s somewhat close to our defined
+true causal effect of 0.085! Let’s look at what result OLS would
+yield.</p>
+</div>
+<div id="compare-ols-vs.-did-regressions" class="section level2">
+<h2>4. Compare OLS vs. DiD Regressions</h2>
+<pre class="r"><code># For standard OLS, we only look at the post-treatment cross-sectional data
+df_post &lt;- df %&gt;% filter(Post == 1)
+
+# Regression 1: Naive OLS (Just SM and MH)
+ols_naive &lt;- lm(MH ~ SM, data = df_post)
+
+# Regression 2: Adjusted OLS (Controlling for the observed variable &#39;W&#39;, like anxiety)
+ols_adj &lt;- lm(MH ~ SM + W, data = df_post)
+
+# Regression 3: DiD Regression (Using the full panel data and interaction term)
+did_reg &lt;- lm(MH ~ Treat * Post, data = df)
+
+cat(&quot;1. OLS (Naive) SM Coefficient     :&quot;, round(coef(ols_naive)[&quot;SM&quot;], 4), &quot;\n&quot;)</code></pre>
+<pre><code>## 1. OLS (Naive) SM Coefficient     : 0.3448</code></pre>
+<pre class="r"><code>cat(&quot;2. OLS (Adjusted) SM Coefficient  :&quot;, round(coef(ols_adj)[&quot;SM&quot;], 4), &quot;\n&quot;)</code></pre>
+<pre><code>## 2. OLS (Adjusted) SM Coefficient  : 0.3093</code></pre>
+<pre class="r"><code>cat(&quot;3. DiD (Treat:Post) Coefficient   :&quot;, round(coef(did_reg)[&quot;Treat:Post&quot;], 4), &quot;\n&quot;)</code></pre>
+<pre><code>## 3. DiD (Treat:Post) Coefficient   : 0.1141</code></pre>
+<pre class="r"><code>cat(&quot;True Causal Effect (delta)        :&quot;, delta, &quot;\n&quot;)</code></pre>
+<pre><code>## True Causal Effect (delta)        : 0.085</code></pre>
+<p>As you can see, the estimate from the DiD is much closer to the true
+causal effect.</p>
+</div>
+<div id="figure-for-parallel-trends" class="section level2">
+<h2>5. Figure for Parallel Trends</h2>
+<p>Difference-in-Differences relies on the “Parallel Trends” assumption.
+This means that if the treatment (Facebook) had never happened, the
+treated colleges would have continued on the exact same trajectory as
+the control colleges.</p>
+<p>To visualize this, we will simulate 6 time periods. Facebook will be
+rolled out to the treated colleges in Period 4 (so there are 3 periods
+pre-treatment and 3 periods post-treatment). We’ll use a larger N so
+that the lines don’t look jagged (but smooth).</p>
+<pre class="r"><code>set.seed(471)
+N_pt &lt;- 2000
+U_pt &lt;- rnorm(N_pt)
+W_pt &lt;- rnorm(N_pt)
+Treat_pt &lt;- rep(c(1, 0), each = N_pt/2)
+
+periods &lt;- 1:6
+treat_time &lt;- 4</code></pre>
+<p>Now, we can create all possible combinations of college and period.
+<code>expand.grid()</code> helps us do that.</p>
+<pre class="r"><code>pt_data &lt;- expand.grid(college = 1:N_pt, period = periods) %&gt;%
+  mutate(
+    U = U_pt[college],
+    W = W_pt[college],
+    Treat = Treat_pt[college],
+    Post = as.integer(period &gt;= treat_time), # 1 if period 4, 5, or 6
+    D = Treat * Post                         # 1 only for treated group in post-periods
+  )</code></pre>
+<p>Then, we’ll calculate the actual MH scores for each row (with error),
+and MH scores for each group (treated vs control) for each time
+period.</p>
+<pre class="r"><code>set.seed(471)
+pt_data &lt;- pt_data %&gt;%
+  mutate(
+    e_sm = rnorm(n(), 0, 0.5),
+    e_mh = rnorm(n(), 0, 0.5),
+    SM = 0.15 * W + 0.30 * U + D + e_sm,
+    MH = 0.085 * SM + 0.30 * U + 0.15 * W + 0.05 * (period - 1) + e_mh
+  )
+
+pt_means &lt;- pt_data %&gt;%
+  group_by(Treat, period) %&gt;%
+  summarise(mean_MH = mean(MH), .groups = &quot;drop&quot;) %&gt;%
+  mutate(Group = ifelse(Treat == 1, &quot;Treated (FB Available)&quot;, &quot;Control (No FB)&quot;))</code></pre>
+<p>Here, we can build the counterfactual line (i.e., what the treated
+group would’ve looked like without treatment).</p>
+<pre class="r"><code>pre_diff &lt;- pt_means %&gt;%
+  filter(period &lt; treat_time) %&gt;%
+  group_by(Treat) %&gt;%
+  summarise(pre_mean = mean(mean_MH), .groups = &quot;drop&quot;)
+
+# gap between treat and control in pre-treatment
+shift &lt;- pre_diff$pre_mean[pre_diff$Treat == 1] - pre_diff$pre_mean[pre_diff$Treat == 0]
+
+# take the control group&#39;s post-treatment trajectory and literally push it up by &#39;shift&#39;. Dashed parallel line.
+counterfactual &lt;- pt_means %&gt;%
+  filter(Treat == 0, period &gt;= treat_time) %&gt;%
+  mutate(mean_MH = mean_MH + shift,
+         Group = &quot;Counterfactual (Treated w/o FB)&quot;)</code></pre>
+<p>Now generate the plot!</p>
+<pre class="r"><code>COL_BIAS    &lt;- &quot;#E41A1C&quot;   # red — biased / confounded
+COL_DID     &lt;- &quot;#377EB8&quot;   # blue — DiD / identified
+COL_DIMMED  &lt;- &quot;#BBBBBB&quot;   # gray — dimmed paths
+COL_TRUE    &lt;- &quot;#333333&quot;   # dark gray — true effect line
+
+THEME_BASE &lt;- theme_minimal(base_size = 12) +
+  theme(panel.grid.minor = element_blank(),
+        plot.title = element_text(face = &quot;bold&quot;, size = 13),
+        plot.subtitle = element_text(size = 10, color = &quot;gray30&quot;))
+
+fig2 &lt;- ggplot(pt_means, aes(x = period, y = mean_MH, color = Group, linetype = Group)) +
+  geom_line(linewidth = 1.1) +
+  geom_point(size = 2.5) +
+  # the counterfactual data we just calculated
+  geom_line(data = counterfactual, linewidth = 0.9) +
+  geom_point(data = counterfactual, size = 2, shape = 1) +
+  # a vertical dashed line to mark when treatment started
+  geom_vline(xintercept = treat_time - 0.5, linetype = &quot;dashed&quot;, color = &quot;gray50&quot;, linewidth = 0.6) +
+  annotate(&quot;text&quot;, x = treat_time - 0.5, y = max(pt_means$mean_MH) + 0.05,
+           label = &quot;Facebook\narrives&quot;, size = 3, hjust = 1.1, color = &quot;gray40&quot;) +
+  # map specific colors and line styles to our groups so they match the constants at the top
+  scale_color_manual(values = c(&quot;Control (No FB)&quot; = COL_DIMMED,
+                                &quot;Treated (FB Available)&quot; = COL_DID,
+                                &quot;Counterfactual (Treated w/o FB)&quot; = COL_BIAS)) +
+  scale_linetype_manual(values = c(&quot;Control (No FB)&quot; = &quot;solid&quot;,
+                                   &quot;Treated (FB Available)&quot; = &quot;solid&quot;,
+                                   &quot;Counterfactual (Treated w/o FB)&quot; = &quot;dashed&quot;))
+fig2</code></pre>
+<p><img src="p06_files/figure-html/unnamed-chunk-10-1.png" width="672" /></p>
+<p>As you can see, the counterfactual vs. treated line shows that
+Facebook availability does have an effect, since the counterfactual and
+treated lines diverge. The counterfactual line shows the trend IF the
+treatment group did not receive treatment (per the parallel trends
+assumption).</p>
+<p>Next lab, we’ll continue with this example and do some assumption and
+robustness checks!</p>
+</div>
 
 
 

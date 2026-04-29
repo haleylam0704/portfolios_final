@@ -9,14 +9,16 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
+<meta name="author" content="Haley Lam" />
 
+<meta name="date" content="2026-04-29" />
 
-<title>Portfolio 1</title>
+<title>Methodological Trends in Psychology (2008-2024)</title>
 
-<script src="site_libs/header-attrs-2.30/header-attrs.js"></script>
+<script src="site_libs/header-attrs-2.31/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link href="site_libs/bootstrap-3.3.5/css/bootstrap.min.css" rel="stylesheet" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
 <script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
@@ -278,6 +280,9 @@ $(document).ready(function () {
 <li>
   <a href="p10.html">Portfolio 10</a>
 </li>
+<li>
+  <a href="p11.html">Portfolio 11</a>
+</li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         
@@ -290,81 +295,147 @@ $(document).ready(function () {
 
 
 
-<h1 class="title toc-ignore">Portfolio 1</h1>
+<h1 class="title toc-ignore">Methodological Trends in Psychology
+(2008-2024)</h1>
+<h4 class="author">Haley Lam</h4>
+<h4 class="date">2026-04-29</h4>
 
 </div>
 
 
-<blockquote>
-<p>The projects should be numbered consecutively (i.e., in the order in
-which you began them), and should include for each project a description
-of the goal, the product (computer program, hand graph, computer graph,
-etc.), the data, and some interpretation. Reports must be reproducible
-and of high quality in terms of writing, grammar, presentation, etc.</p>
-</blockquote>
-<pre class="r"><code>library(tidyverse) 
-library(tidyr)
-data(fish_encounters)</code></pre>
-<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum
-eget nibh vel est aliquet iaculis at placerat sem. Aenean faucibus
-iaculis ultricies. Nullam consequat odio in ultricies ullamcorper. Etiam
-venenatis in est vitae ullamcorper. Nam vitae urna ut dolor rhoncus
-aliquet at vel neque. Quisque tristique leo finibus nisi interdum, sit
-amet tempor risus viverra. Donec mollis vulputate sodales. Nunc ornare,
-leo quis euismod eleifend, eros mi maximus felis, vel varius lacus dui
-eget nibh. Duis vitae nunc nisl. Donec accumsan aliquam elit, eu
-fringilla quam pulvinar eget.</p>
-<p>Mauris in ligula mauris. Curabitur facilisis pharetra metus eget
-lobortis. In egestas nibh sit amet faucibus eleifend. Suspendisse
-imperdiet viverra blandit. Phasellus consectetur tincidunt eros eu
-facilisis. Quisque maximus, orci eget sodales aliquam, velit lorem
-semper dolor, nec convallis erat ipsum mattis velit. Pellentesque
-porttitor, mauris vitae aliquam mattis, metus nisl viverra turpis, vel
-convallis metus sapien et ex. Nunc consequat ipsum id dolor eleifend,
-sit amet semper eros sodales. Pellentesque consectetur, dui quis
-venenatis malesuada, nunc lorem lacinia libero, vitae malesuada dui arcu
-in augue. Aliquam id sagittis libero. Vestibulum aliquet sagittis
-libero, non posuere odio molestie ut. Curabitur lacus enim, viverra vel
-odio non, pretium efficitur elit. Mauris posuere efficitur interdum.
-Nunc sed bibendum turpis, quis fringilla velit. Phasellus eu lorem
-lobortis eros molestie laoreet.</p>
-<pre class="r"><code># Create a barplot of the number of fish encounters by species
-ggplot(data = fish_encounters, aes(x = station, y = seen)) +
-  geom_bar(stat = &quot;identity&quot;) +
-  labs(x = &quot;Species&quot;, y = &quot;Number of Fish Encounters&quot;)</code></pre>
-<p><img src="p01_files/figure-html/unnamed-chunk-1-1.png" alt="" width="672" /></p>
-<p>Sed mollis purus faucibus leo finibus, ut pharetra nibh elementum.
-Nulla id orci lorem. Mauris sollicitudin mi eget tellus vehicula, ut
-convallis lorem mollis. In blandit nulla diam, a malesuada sem volutpat
-interdum. Ut elementum elit at velit maximus, ac tempor odio porttitor.
-Suspendisse lobortis sollicitudin tortor, ut pharetra libero luctus a.
-Sed hendrerit faucibus metus. Sed rutrum purus vel pellentesque
-euismod.</p>
-<pre class="r"><code># Create a barplot of the number of fish encounters by species
-ggplot(data = fish_encounters, aes(x = station, y = seen)) +
-  geom_bar(stat = &quot;identity&quot;) +
-  labs(x = &quot;Species&quot;, y = &quot;Number of Fish Encounters&quot;)</code></pre>
-<p><img src="p01_files/figure-html/unnamed-chunk-2-1.png" alt="" width="672" /></p>
-<p>Mauris placerat in velit a pharetra. Nulla viverra bibendum lectus,
-ut lobortis nibh. Aenean malesuada, orci vitae dictum placerat, enim
-justo aliquet leo, ac tincidunt augue ipsum et mi. Nullam in pharetra
-metus, nec molestie felis. Duis varius rhoncus pulvinar. Integer semper
-urna sed tellus rhoncus, vel suscipit odio iaculis. Mauris iaculis neque
-pellentesque ex convallis venenatis. Sed ultrices euismod fermentum. Ut
-feugiat risus at turpis tincidunt viverra.</p>
-<pre class="r"><code># Create a barplot of the number of fish encounters by species
-ggplot(data = fish_encounters, aes(x = station, y = seen)) +
-  geom_bar(stat = &quot;identity&quot;) +
-  labs(x = &quot;Species&quot;, y = &quot;Number of Fish Encounters&quot;)</code></pre>
-<p><img src="p01_files/figure-html/unnamed-chunk-3-1.png" alt="" width="672" /></p>
-<p>Donec sagittis suscipit orci in ultrices. Vivamus iaculis eleifend
-est et dictum. Fusce non urna at lacus dapibus tincidunt ac sed nibh.
-Donec luctus lectus elit, ac ultrices tortor mollis sit amet. Nulla
-finibus lacinia arcu. Proin sollicitudin non odio et pulvinar. Maecenas
-finibus faucibus finibus. Ut elementum metus velit, a sodales sapien
-commodo et. Vivamus pulvinar, sapien et porta cursus, elit est luctus
-nisi, eget fringilla odio diam et enim. Sed sodales suscipit bibendum.
-Morbi ut metus semper, laoreet felis sodales, consequat dolor.</p>
+<div id="overview" class="section level3">
+<h3>Overview</h3>
+<p>This piece zooms into the methodological trends of subfields in
+psychology using data from Lam (2025). I categorized articles from
+journals into subfields, then looked closer at social and personality
+psychology subfields.</p>
+</div>
+<div id="environment-setup-data-loading" class="section level2">
+<h2>1. Environment Setup &amp; Data Loading</h2>
+<p>First, we load the necessary libraries and pull the dataset directly
+from OSF.</p>
+</div>
+<div id="categorization-of-journals" class="section level2">
+<h2>2. Categorization of Journals</h2>
+<p>Then, specific journals were placed into broader subfields
+(Clinical/Counseling, Social/Personality, Health, Developmental,
+etc.).</p>
+<pre class="r"><code>psych_data &lt;- psych_data %&gt;%
+        mutate(Subfield = case_when(
+                Journal %in% c(&quot;Journal of Anxiety Disorders&quot;, 
+                               &quot;Journal of Consulting and Clinical Psychology&quot;, 
+                               &quot;Journal of Clinical Child and Adolescent Psychology&quot;, 
+                               &quot;Journal of Counseling Psychology&quot;, 
+                               &quot;Behaviour Research and Therapy&quot;, 
+                               &quot;Behavior Therapy&quot;, 
+                               &quot;Journal of Traumatic Stress&quot;) ~ &quot;Clinical/Counseling&quot;,
+                
+                Journal %in% c(&quot;Personality and Social Psychology Review&quot;, 
+                               &quot;Journal of Personality and Social Psychology&quot;, 
+                               &quot;Journal of Personality&quot;, 
+                               &quot;Personality and Social Psychology Bulletin&quot;, 
+                               &quot;British Journal of Social Psychology&quot;, 
+                               &quot;Journal of Experimental Social Psychology&quot;) ~ &quot;Social/Personality&quot;,
+                
+                Journal %in% c(&quot;Journal of Occupational Health Psychology&quot;, 
+                               &quot;Health Psychology&quot;) ~ &quot;Health&quot;,
+                
+                Journal %in% c(&quot;Developmental Science&quot;) ~ &quot;Developmental&quot;,
+                
+                Journal %in% c(&quot;Emotion&quot;, 
+                   &quot;Psychology of Women Quarterly&quot;, 
+                   &quot;Journal of Positive Psychology&quot;, 
+                   &quot;British Journal of Psychology&quot;) ~ &quot;Uncategorized&quot;,
+    
+    TRUE ~ &quot;Other&quot;
+  ))
+
+# Display the distribution of articles per subfield
+print(table(psych_data$Subfield))</code></pre>
+<pre><code>## 
+## Clinical/Counseling       Developmental              Health  Social/Personality 
+##                 738                 108                 206                 611 
+##       Uncategorized 
+##                 401</code></pre>
+<p>There are 2064 total articles.</p>
+</div>
+<div id="trends-by-subfield" class="section level2">
+<h2>3. Trends by Subfield</h2>
+<p>Then, we aggregate the proportion of methodological approaches within
+each subfield by year.</p>
+<pre class="r"><code># Reshape and summarize data
+subfield_yearly_summary &lt;- psych_data %&gt;%
+        pivot_longer(cols = all_of(methodologies), names_to = &quot;category&quot;, values_to = &quot;value&quot;) %&gt;%
+        filter(value == 1) %&gt;%
+        group_by(Subfield, year, category) %&gt;%
+        summarize(total_rows = n(), .groups = &quot;drop&quot;) %&gt;%
+        group_by(Subfield, year) %&gt;%
+        mutate(proportion = total_rows / sum(total_rows)) %&gt;%
+        mutate(category = gsub(&quot;_&quot;, &quot; &quot;, category))
+
+# Visualization
+plot_subfields &lt;- ggplot(subfield_yearly_summary, 
+                         aes(x = year, y = proportion, color = category, group = category)) +
+        geom_line(linewidth = 1) +
+        geom_point(size = 2) +
+        facet_wrap(~Subfield) +
+        labs(title = &quot;Methodological Trends by Psychology Subfield (2008-2024)&quot;,
+             subtitle = &quot;Comparing the prevalence of Experimental vs. Descriptive approaches&quot;,
+             x = &quot;Year&quot;, y = &quot;Proportion of Articles&quot;, color = &quot;Methodology&quot;) +
+        theme_bw() +
+        scale_color_viridis_d(option = &quot;D&quot;) +
+        theme(legend.position = &quot;bottom&quot;) + 
+        ylim(0, 1)
+
+plot_subfields</code></pre>
+<p><img src="p01_files/figure-html/unnamed-chunk-2-1.png" width="672" /></p>
+<p>There doesn’t seem to be any linear trends, though perhaps there’s
+been a slight decrease in experimental papers in health psychology.</p>
+</div>
+<div id="deep-dive-socialpersonality-journals" class="section level2">
+<h2>4. Deep Dive: Social/Personality Journals</h2>
+<p>Zooming in on the Social/Personality subfield, we can see if specific
+journals use different methodologies, and whether specific journals have
+trends over time.</p>
+<pre class="r"><code># Filter for specific subfield
+soc_pers_data &lt;- psych_data %&gt;%
+        filter(Subfield == &quot;Social/Personality&quot;)
+
+# Reshape data into long
+soc_pers_summary &lt;- soc_pers_data %&gt;%
+        pivot_longer(cols = all_of(methodologies), names_to = &quot;category&quot;, values_to = &quot;value&quot;) %&gt;%
+        filter(value == 1) %&gt;%
+        group_by(Journal, year, category) %&gt;%
+        summarize(total_rows = n(), .groups = &quot;drop&quot;) %&gt;%
+        group_by(Journal, year) %&gt;%
+        mutate(proportion = total_rows / sum(total_rows)) %&gt;%
+        mutate(category = gsub(&quot;_&quot;, &quot; &quot;, category))
+
+# Visualization
+plot_soc_pers &lt;- ggplot(soc_pers_summary, 
+                        aes(x = year, y = proportion, color = category, group = category)) +
+        geom_line(linewidth = 1) +
+        geom_point(size = 2) +
+        facet_wrap(~Journal, scales = &quot;free_y&quot;) + 
+        labs(title = &quot;Methodological Trends in Social/Personality Journals&quot;,
+             x = &quot;Year&quot;, y = &quot;Proportion of Articles&quot;, color = &quot;Methodology&quot;) +
+        theme_bw() +
+        scale_color_viridis_d(option = &quot;D&quot;) +
+        theme(legend.position = &quot;bottom&quot;, strip.text = element_text(size = 8)) + 
+        ylim(0, 1)
+
+plot_soc_pers</code></pre>
+<p><img src="p01_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
+<p>The journal of experimental social psychology, to no surprise, is
+almost entirely made up of experiments. JPSP seems to have an increase
+in correlational studies, though that trend is not stable or clear. No
+other journals seem to have clear trends.</p>
+<p>Reflecting on the Lam (2025) paper, I would probably focus on only
+empirical journals. The one review journal (PSPR) just seems out of
+place, and theoretical articles are clearly largely dependent on the
+journal (i.e., only theory journals publish theory papers, while
+empirical journals rarely publish theory papers).</p>
+</div>
 
 
 

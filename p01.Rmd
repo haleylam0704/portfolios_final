@@ -1,67 +1,145 @@
 ---
-title: "Portfolio 1"
+title: "Methodological Trends in Psychology (2008-2024)"
+author: "Haley Lam"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    theme: cosmo
 ---
+### Overview
+This piece zooms into the methodological trends of subfields in psychology using data from  Lam (2025). I categorized articles from journals into subfields, then looked closer at social and personality psychology subfields.
 
-> This is the first portfolio for the course. The purpose of this portfolio is to demonstrate your ability to use R for data analysis and visualization, as well as your ability to communicate your findings effectively. Across the template, you will find a variety of code chunks and text that can be used as a starting point for your own work. You should replace the example code and text with your own work, and you should expand upon it as needed. The goal of this portfolio is to demonstrate your ability to use R for data analysis and visualization, as well as your ability to communicate your findings effectively. I also recommend you add in some personal information about yourself, your goals for the course, and any other information you think is relevant to include in your portfolio. This can help make your portfolio more personal and engaging for readers. (You should probably delete these instructions from your final portfolio, but I wanted to include them here to help you get started and provide some guidance on what to include in your portfolio.)
+## 1. Environment Setup & Data Loading
+First, we load the necessary libraries and pull the dataset directly from OSF.
 
+```{r setup, include=FALSE}
 
-The projects should be numbered consecutively (i.e., in the order in which you began them), and should include for each project a description of the goal, the product (computer program, hand graph, computer graph, etc.), the data, and some interpretation. Reports must be reproducible and of high quality in terms of writing, grammar, presentation, etc. 
-
-The template for this portfolio is an R Markdown document. You can use this template to create your portfolio, and you can modify it as needed. The template includes some example code and text, which you should replace and expand upon with your own work. The goal of this portfolio is to demonstrate your ability to use R for data analysis and visualization, as well as your ability to communicate your findings effectively.
-
-```{r load-packages, warning = FALSE, message=FALSE}
-library(tidyverse) 
+library(ggplot2)
 library(tidyr)
-library(synthpop)
+library(dplyr)
+# Load data
+data <- read.csv("https://osf.io/5cqzb/download")
+
+# Removing Duplicates
+data <- data %>% distinct(Title, .keep_all = TRUE)
+
+# Select Relevant Methodologies
+methodologies <- c("Experimental", "Causal_Inference", "Descriptive_Correlational", "Theoretical")
+
+# Filter for Psychology and Select Relevant Columns
+psych_data <- data %>%
+        filter(Discipline == "Psychology") %>%
+        select(Journal, Year, all_of(methodologies)) %>%
+        rename(year = Year)
 ```
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum eget nibh vel est aliquet iaculis at placerat sem. Aenean faucibus iaculis ultricies. Nullam consequat odio in ultricies ullamcorper. Etiam venenatis in est vitae ullamcorper. Nam vitae urna ut dolor rhoncus aliquet at vel neque. Quisque tristique leo finibus nisi interdum, sit amet tempor risus viverra. Donec mollis vulputate sodales. Nunc ornare, leo quis euismod eleifend, eros mi maximus felis, vel varius lacus dui eget nibh. Duis vitae nunc nisl. Donec accumsan aliquam elit, eu fringilla quam pulvinar eget.
-
-Mauris in ligula mauris. Curabitur facilisis pharetra metus eget lobortis. In egestas nibh sit amet faucibus eleifend. Suspendisse imperdiet viverra blandit. Phasellus consectetur tincidunt eros eu facilisis. Quisque maximus, orci eget sodales aliquam, velit lorem semper dolor, nec convallis erat ipsum mattis velit. Pellentesque porttitor, mauris vitae aliquam mattis, metus nisl viverra turpis, vel convallis metus sapien et ex. Nunc consequat ipsum id dolor eleifend, sit amet semper eros sodales. Pellentesque consectetur, dui quis venenatis malesuada, nunc lorem lacinia libero, vitae malesuada dui arcu in augue. Aliquam id sagittis libero. Vestibulum aliquet sagittis libero, non posuere odio molestie ut. Curabitur lacus enim, viverra vel odio non, pretium efficitur elit. Mauris posuere efficitur interdum. Nunc sed bibendum turpis, quis fringilla velit. Phasellus eu lorem lobortis eros molestie laoreet.
-
-
-
-```{r}
-data(fish_encounters)
-# Create a barplot of the number of fish encounters by species
-ggplot(data = fish_encounters, aes(x = station, y = seen)) +
-  geom_bar(stat = "identity") +
-  labs(x = "Station", y = "Number of Fish Encounters")
-  
-```
-
-
-Sed mollis purus faucibus leo finibus, ut pharetra nibh elementum. Nulla id orci lorem. Mauris sollicitudin mi eget tellus vehicula, ut convallis lorem mollis. In blandit nulla diam, a malesuada sem volutpat interdum. Ut elementum elit at velit maximus, ac tempor odio porttitor. Suspendisse lobortis sollicitudin tortor, ut pharetra libero luctus a. Sed hendrerit faucibus metus. Sed rutrum purus vel pellentesque euismod.
-
-
+## 2. Categorization of Journals
+Then, specific journals were placed into broader subfields (Clinical/Counseling, Social/Personality, Health, Developmental, etc.).
 ```{r}
 
-data(uspop)
+psych_data <- psych_data %>%
+        mutate(Subfield = case_when(
+                Journal %in% c("Journal of Anxiety Disorders", 
+                               "Journal of Consulting and Clinical Psychology", 
+                               "Journal of Clinical Child and Adolescent Psychology", 
+                               "Journal of Counseling Psychology", 
+                               "Behaviour Research and Therapy", 
+                               "Behavior Therapy", 
+                               "Journal of Traumatic Stress") ~ "Clinical/Counseling",
+                
+                Journal %in% c("Personality and Social Psychology Review", 
+                               "Journal of Personality and Social Psychology", 
+                               "Journal of Personality", 
+                               "Personality and Social Psychology Bulletin", 
+                               "British Journal of Social Psychology", 
+                               "Journal of Experimental Social Psychology") ~ "Social/Personality",
+                
+                Journal %in% c("Journal of Occupational Health Psychology", 
+                               "Health Psychology") ~ "Health",
+                
+                Journal %in% c("Developmental Science") ~ "Developmental",
+                
+                Journal %in% c("Emotion", 
+                   "Psychology of Women Quarterly", 
+                   "Journal of Positive Psychology", 
+                   "British Journal of Psychology") ~ "Uncategorized",
+    
+    TRUE ~ "Other"
+  ))
 
-plot(uspop, log = "y", xlab = "Year",
-     ylab = "U.S. Population (millions)",
-     main = "U.S. Population Growth")
- 
-  
+# Display the distribution of articles per subfield
+print(table(psych_data$Subfield))
 ```
 
-Mauris placerat in velit a pharetra. Nulla viverra bibendum lectus, ut lobortis nibh. Aenean malesuada, orci vitae dictum placerat, enim justo aliquet leo, ac tincidunt augue ipsum et mi. Nullam in pharetra metus, nec molestie felis. Duis varius rhoncus pulvinar. Integer semper urna sed tellus rhoncus, vel suscipit odio iaculis. Mauris iaculis neque pellentesque ex convallis venenatis. Sed ultrices euismod fermentum. Ut feugiat risus at turpis tincidunt viverra.
+There are `r nrow(psych_data)` total articles.
 
+## 3. Trends by Subfield
+Then, we aggregate the proportion of methodological approaches within each subfield by year.
+```{r}
+# Reshape and summarize data
+subfield_yearly_summary <- psych_data %>%
+        pivot_longer(cols = all_of(methodologies), names_to = "category", values_to = "value") %>%
+        filter(value == 1) %>%
+        group_by(Subfield, year, category) %>%
+        summarize(total_rows = n(), .groups = "drop") %>%
+        group_by(Subfield, year) %>%
+        mutate(proportion = total_rows / sum(total_rows)) %>%
+        mutate(category = gsub("_", " ", category))
+
+# Visualization
+plot_subfields <- ggplot(subfield_yearly_summary, 
+                         aes(x = year, y = proportion, color = category, group = category)) +
+        geom_line(linewidth = 1) +
+        geom_point(size = 2) +
+        facet_wrap(~Subfield) +
+        labs(title = "Methodological Trends by Psychology Subfield (2008-2024)",
+             subtitle = "Comparing the prevalence of Experimental vs. Descriptive approaches",
+             x = "Year", y = "Proportion of Articles", color = "Methodology") +
+        theme_bw() +
+        scale_color_viridis_d(option = "D") +
+        theme(legend.position = "bottom") + 
+        ylim(0, 1)
+
+plot_subfields
+```
+
+There doesn't seem to be any linear trends, though perhaps there's been a slight decrease in experimental papers in health psychology.
+
+## 4. Deep Dive: Social/Personality Journals
+
+Zooming in on the Social/Personality subfield, we can see if specific journals use different methodologies, and whether specific journals have trends over time.
 
 ```{r}
-library(synthpop)
+# Filter for specific subfield
+soc_pers_data <- psych_data %>%
+        filter(Subfield == "Social/Personality")
 
-### default synthesis of selected variables
-vars <- c("sex", "age", "edu", "smoke")
-ods  <- na.omit(SD2011[1:1000, vars])
-s1 <- syn(ods)
+# Reshape data into long
+soc_pers_summary <- soc_pers_data %>%
+        pivot_longer(cols = all_of(methodologies), names_to = "category", values_to = "value") %>%
+        filter(value == 1) %>%
+        group_by(Journal, year, category) %>%
+        summarize(total_rows = n(), .groups = "drop") %>%
+        group_by(Journal, year) %>%
+        mutate(proportion = total_rows / sum(total_rows)) %>%
+        mutate(category = gsub("_", " ", category))
 
-### categorical var
-multi.compare(s1, ods, var = "smoke", by = c("sex","edu"))
+# Visualization
+plot_soc_pers <- ggplot(soc_pers_summary, 
+                        aes(x = year, y = proportion, color = category, group = category)) +
+        geom_line(linewidth = 1) +
+        geom_point(size = 2) +
+        facet_wrap(~Journal, scales = "free_y") + 
+        labs(title = "Methodological Trends in Social/Personality Journals",
+             x = "Year", y = "Proportion of Articles", color = "Methodology") +
+        theme_bw() +
+        scale_color_viridis_d(option = "D") +
+        theme(legend.position = "bottom", strip.text = element_text(size = 8)) + 
+        ylim(0, 1)
 
-### numeric var
-multi.compare(s1, ods, var = "age", by = c("sex"), y.hist = "density", binwidth = 5)
-multi.compare(s1, ods, var = "age", by = c("sex", "edu"), cont.type = "boxplot")
+plot_soc_pers
 ```
 
-Donec sagittis suscipit orci in ultrices. Vivamus iaculis eleifend est et dictum. Fusce non urna at lacus dapibus tincidunt ac sed nibh. Donec luctus lectus elit, ac ultrices tortor mollis sit amet. Nulla finibus lacinia arcu. Proin sollicitudin non odio et pulvinar. Maecenas finibus faucibus finibus. Ut elementum metus velit, a sodales sapien commodo et. Vivamus pulvinar, sapien et porta cursus, elit est luctus nisi, eget fringilla odio diam et enim. Sed sodales suscipit bibendum. Morbi ut metus semper, laoreet felis sodales, consequat dolor.
+The journal of experimental social psychology, to no surprise, is almost entirely made up of experiments. JPSP seems to have an increase in correlational studies, though that trend is not stable or clear. No other journals seem to have clear trends.
+
+Reflecting on the Lam (2025) paper, I would probably focus on only empirical journals. The one review journal (PSPR) just seems out of place, and theoretical articles are clearly largely dependent on the journal (i.e., only theory journals publish theory papers, while empirical journals rarely publish theory papers).

@@ -9,14 +9,16 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
+<meta name="author" content="Haley Lam" />
 
+<meta name="date" content="2026-04-29" />
 
-<title>Portfolio 3</title>
+<title>Methodological Trends in Social/Personality Psychology (2017-2022)</title>
 
-<script src="site_libs/header-attrs-2.30/header-attrs.js"></script>
+<script src="site_libs/header-attrs-2.31/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link href="site_libs/bootstrap-3.3.5/css/bootstrap.min.css" rel="stylesheet" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
 <script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
@@ -278,6 +280,9 @@ $(document).ready(function () {
 <li>
   <a href="p10.html">Portfolio 10</a>
 </li>
+<li>
+  <a href="p11.html">Portfolio 11</a>
+</li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         
@@ -290,18 +295,152 @@ $(document).ready(function () {
 
 
 
-<h1 class="title toc-ignore">Portfolio 3</h1>
+<h1 class="title toc-ignore">Methodological Trends in Social/Personality
+Psychology (2017-2022)</h1>
+<h4 class="author">Haley Lam</h4>
+<h4 class="date">2026-04-29</h4>
 
 </div>
 
 
-<blockquote>
-<p>The projects should be numbered consecutively (i.e., in the order in
-which you began them), and should include for each project a description
-of the goal, the product (computer program, hand graph, computer graph,
-etc.), the data, and some interpretation. Reports must be reproducible
-and of high quality in terms of writing, grammar, presentation, etc.</p>
-</blockquote>
+<div id="overview" class="section level3">
+<h3>Overview</h3>
+<p>This paper uses the existing definitions and methods validated by Lam
+(2025) to categorize all articles from JPSP, SPPS, and PSPB in
+2017-2022. It is the “Phase 1” of 3, which aims at identifying potential
+for causal inference methods in psychology.</p>
+</div>
+<div id="set-envrionment-and-load-data" class="section level2">
+<h2>1. Set Envrionment and Load Data</h2>
+<pre class="r"><code>library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(kableExtra)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;kableExtra&#39;</code></pre>
+<pre><code>## The following object is masked from &#39;package:dplyr&#39;:
+## 
+##     group_rows</code></pre>
+<pre class="r"><code>library(readr)
+
+data &lt;- read_csv(&quot;phase1_results.csv&quot;)</code></pre>
+<pre><code>## Rows: 2172 Columns: 38</code></pre>
+<pre><code>## ── Column specification ───────────────────────────────────────────────────
+## Delimiter: &quot;,&quot;
+## chr (19): DOI, Title, trimmed_title, CombinedAuthors, Source, Publisher, Art...
+## dbl (17): ...1, CombinedCites, Year, GSRank, ECC, CitesPerYear, CitesPerAuth...
+## lgl  (2): DOI_missing, CitationURL
+## 
+## ℹ Use `spec()` to retrieve the full column specification for this data.
+## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
+<p>There are 2172 articles in the dataset.</p>
+<p>Now, let’s select the variables that are relevant (Journal, Year, and
+Methodologies). Each methodology has its own column (coded 0 or 1).</p>
+<pre class="r"><code>methodologies &lt;- c(&quot;Experimental&quot;, &quot;Causal_Inference&quot;, &quot;Descriptive_Correlational&quot;,
+                   &quot;Theoretical&quot;, &quot;Methodological&quot;, &quot;Review_Meta_analysis&quot;, &quot;Other&quot;)
+data_clean &lt;- data %&gt;%
+        select(JournalAbbr, Year, all_of(methodologies)) %&gt;%
+        rename(journal = JournalAbbr, year = Year)</code></pre>
+</div>
+<div id="yearly-proportion-summaries" class="section level2">
+<h2>2. Yearly Proportion Summaries</h2>
+<p>Now, we can reshape the data to long format and only keep the
+categories that have a value of 1. Since these categories are mutually
+exclusive (in the way they are coded, although not theoretically), there
+should only be one category per row.</p>
+<pre class="r"><code>long_data &lt;- data_clean %&gt;%
+  pivot_longer(
+    cols = all_of(methodologies),
+    names_to = &quot;category&quot;,
+    values_to = &quot;value&quot;
+  ) %&gt;%
+  filter(value == 1)</code></pre>
+<p>Then, we can count the number of articles categorized in each
+methodology by journal and year (i.e., for each journal, how many
+articles are in each of the 6 categories within each year?)</p>
+<pre class="r"><code>category_counts &lt;- long_data %&gt;%
+  group_by(journal, year, category) %&gt;%
+  summarize(total_rows = n(), .groups = &quot;drop&quot;)</code></pre>
+<p>Next, we can calculate those proportions, again grouping by journal
+and year</p>
+<pre class="r"><code>category_proportions &lt;- category_counts %&gt;%
+  group_by(journal, year) %&gt;%
+  mutate(proportion = total_rows / sum(total_rows)) %&gt;%
+  ungroup()</code></pre>
+<p>Then, we can clean up the category names (e.g., Descriptive
+Correlational should be Descriptive/Correlational). I made the mistake
+of not knowing this in my published article!</p>
+<pre class="r"><code>journal_yearly_summary &lt;- category_proportions %&gt;%
+  mutate(
+    category = gsub(&quot;_&quot;, &quot; &quot;, category),
+    category = gsub(&quot;Descriptive Correlational&quot;, &quot;Descriptive/Correlational&quot;, category),
+    category = gsub(&quot;Review Meta analysis&quot;, &quot;Review/Meta-analysis&quot;, category)
+  ) %&gt;%
+  arrange(journal, year, category)</code></pre>
+</div>
+<div id="proportion-by-journal" class="section level2">
+<h2>3. Proportion by Journal</h2>
+<p>One of the goals is to examine the proportion of articles that use a
+given methodology by journal.</p>
+<pre class="r"><code>mean_props &lt;- data_clean %&gt;%
+        group_by(journal) %&gt;%
+        summarize(
+                Experimental = round(mean(Experimental, na.rm = TRUE), 3),
+                Causal_Inference = round(mean(Causal_Inference, na.rm = TRUE), 3),
+                Descriptive_Correlational = round(mean(Descriptive_Correlational, na.rm = TRUE), 3),
+                Theoretical = round(mean(Theoretical, na.rm = TRUE), 3),
+                N = n(),
+                .groups = &quot;drop&quot;
+        )
+mean_props</code></pre>
+<pre><code>## # A tibble: 3 × 6
+##   journal Experimental Causal_Inference Descriptive_Correlat…¹ Theoretical     N
+##   &lt;chr&gt;          &lt;dbl&gt;            &lt;dbl&gt;                  &lt;dbl&gt;       &lt;dbl&gt; &lt;int&gt;
+## 1 JPSP           0.555            0.036                  0.349       0.003   744
+## 2 PSPB           0.554            0.031                  0.351       0       734
+## 3 SPPS           0.457            0.022                  0.471       0.004   694
+## # ℹ abbreviated name: ¹​Descriptive_Correlational</code></pre>
+<p>As expected, the three social/personality journals do a lot of
+Experimental/Correlational work. It might be worth digging deeper into
+those categorized as “Causal Inference”, since I have a feeling many of
+them aren’t quite causal.</p>
+<p>Regarding between-journal differences, JPSP publishes the most
+experimental work, while SPPS does more desriptive/correlational work.
+This, I susepct, could be due to how experiments are well-respected in
+social psych? JPSP as the top journal might prefer such ‘gold standard’
+studies, while SPPS might be more willing to take in high-quality
+descriptive/correlational studies.</p>
+</div>
+<div id="generate-trend-plots" class="section level2">
+<h2>4. Generate Trend Plots</h2>
+<p>Next, we can generate some plots! We can focus on the main 4
+categories (as reported in Lam, 2025).</p>
+<pre class="r"><code>journal_labels &lt;- c(&quot;JPSP&quot; = &quot;JPSP&quot;, &quot;PSPB&quot; = &quot;PSPB&quot;, &quot;SPPS&quot; = &quot;SPPS&quot;)
+main_categories &lt;- c(&quot;Experimental&quot;, &quot;Causal Inference&quot;, &quot;Descriptive/Correlational&quot;, &quot;Theoretical&quot;)
+
+
+trends_plot &lt;- ggplot(journal_yearly_summary %&gt;% filter(category %in% main_categories),
+                      aes(x = year, y = proportion,
+                          linetype = category, shape = category,
+                          color = category,
+                          group = category)) +
+        geom_line(linewidth = 1.2) +
+        geom_point(size = 3) +
+        scale_color_viridis_d(option = &quot;D&quot;) +
+        labs(x = &quot;Year&quot;, y = &quot;Proportion of Articles&quot;,
+             linetype = &quot;Methodology&quot;, shape = &quot;Methodology&quot;, color = &quot;Methodology&quot;) +
+        facet_wrap(~journal, labeller = labeller(journal = journal_labels)) +
+        scale_x_continuous(breaks = 2017:2022) +
+        theme_bw() +
+        theme(legend.position = &quot;bottom&quot;,
+              axis.text.x = element_text(angle = 45, hjust = 1))
+print(trends_plot)</code></pre>
+<p><img src="p03_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
+<p>There are no obvious linear trends, though SPPS seems to be having
+increases in descriptive/correlational studies. This can reflect 1) the
+methodological conservatism found in Lam (2025) or 2) a timeframe too
+short to detect any meaningful trends within the field.</p>
+</div>
 
 
 

@@ -9,14 +9,16 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
+<meta name="author" content="Haley Lam" />
 
+<meta name="date" content="2026-04-29" />
 
-<title>Portfolio 4</title>
+<title>Portfolio 4: A DAG Structure for Social Media’s Impact on Mental Health</title>
 
-<script src="site_libs/header-attrs-2.30/header-attrs.js"></script>
+<script src="site_libs/header-attrs-2.31/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link href="site_libs/bootstrap-3.3.5/css/bootstrap.min.css" rel="stylesheet" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
 <script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
@@ -278,6 +280,9 @@ $(document).ready(function () {
 <li>
   <a href="p10.html">Portfolio 10</a>
 </li>
+<li>
+  <a href="p11.html">Portfolio 11</a>
+</li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         
@@ -290,18 +295,251 @@ $(document).ready(function () {
 
 
 
-<h1 class="title toc-ignore">Portfolio 4</h1>
+<h1 class="title toc-ignore">Portfolio 4: A DAG Structure for Social
+Media’s Impact on Mental Health</h1>
+<h4 class="author">Haley Lam</h4>
+<h4 class="date">2026-04-29</h4>
 
 </div>
 
 
-<blockquote>
-<p>The projects should be numbered consecutively (i.e., in the order in
-which you began them), and should include for each project a description
-of the goal, the product (computer program, hand graph, computer graph,
-etc.), the data, and some interpretation. Reports must be reproducible
-and of high quality in terms of writing, grammar, presentation, etc.</p>
-</blockquote>
+<div id="overview" class="section level2">
+<h2>Overview</h2>
+<p>The goal of this portfolio is to unpack a causal structure as
+informed by the literature, intended for readers who want the complete
+picture. We’ll start from a simple DAG to more complicated structures to
+show the value of thinking through a causal structure before running
+analyses. There will be three panels, each with a threat to causal
+inference: Panel A: Two unmeasured confounders and observed covariates.
+Panel B: Conditioning on a Collider Panel C: Conditioning on a
+Mediator</p>
+<p>Let’s do it!</p>
+<div id="load-libraries-theres-no-data-to-load" class="section level3">
+<h3>Load Libraries (there’s no data to load!)</h3>
+<pre class="r"><code>library(ggplot2)
+library(patchwork)
+library(dagitty)</code></pre>
+</div>
+</div>
+<div id="section-1-using-daggity-to-draw-and-analyze-dags"
+class="section level2">
+<h2>Section 1: Using “daggity” to draw and analyze DAGs</h2>
+<p>Daggity is a tool (and a package in R) that will help us
+understanding our hypothesized underlying causal structure. They have a
+website, but since we’re in R, we can use their package!</p>
+<div id="dag-1-unmeasured-confounding" class="section level3">
+<h3>DAG #1: Unmeasured Confounding</h3>
+<p>These are the variables we’ll be dealing with: SM = Social media use
+(treatment) MH = Mental health outcome (depression/wellbeing) U1 =
+Neuroticism / pre-existing mental health (unobserved latent) Predicts
+heavier SM use (emotional regulation, boredom avoidance) AND worse MH
+outcomes (pre-existing vulnerability). U2 = SES / family environment
+(unobserved latent) Lower SES predicts higher SM use (indoor leisure)
+AND worse MH (material hardship, neighborhood stress). There are proxies
+in W but they’re not fully captured. W = Observed covariates (age, sex,
+race, parental education) Standard controls in the correlational
+literature. Reduce bias from demographic variation but do NOT close the
+U1 or U2 backdoor paths.</p>
+<div id="daggity-for-dag-1" class="section level4">
+<h4>Daggity for Dag #1</h4>
+<p>Unmeasured confounding is something psychologists are aware about,
+and possibly the main reason why psychologists don’t trust in causality
+with observational data. Here, we show how it might appear in a DAG. We
+first define the variables (also called nodes), then draw the arrows (or
+edges).</p>
+<pre class="r"><code>dag_A &lt;- dagitty(&#39;dag {
+  SM 
+  MH 
+  U1 [latent]
+  U2 [latent]
+  W
+  
+  SM -&gt; MH
+  U1 -&gt; SM
+  U1 -&gt; MH
+  U2 -&gt; SM
+  U2 -&gt; MH
+  W  -&gt; SM
+  W  -&gt; MH
+}&#39;)</code></pre>
+<p>What we did above was define our causal structure. There are many
+ways to do this, including forks (SM &lt;- W -&gt; MH) and chains (we
+don’t have one here, but it’d look something like A -&gt; B -&gt; C),
+but what I did above was the simplest way, which defines causal
+directions with just pairs of variables. Now, we’ll use the
+“adjustmentSets” function to “test” our DAG! The output tells us what we
+must control for.</p>
+<p>We can first test a minimal solution. We should get an empty
+response, since we have unmeasured (latent) confounders that cannot be
+controlled for.</p>
+<pre class="r"><code>print(adjustmentSets(dag_A, &quot;SM&quot;, &quot;MH&quot;, type = &quot;minimal&quot;)) </code></pre>
+<p>This means that there is no solution to our issue of unmeasured
+confounders! We’re doomed! This is extremely useful to know, since we
+can control for our observed confounders (W) all we want, but this
+output tells us that with the data we currently have, an unbiased
+regression is impossible.</p>
+<p>Now, let’s see what we have to control to get an unbiased regression
+(i.e., block all backdoor paths). We can do this with the “type =”all””
+setting.</p>
+<pre class="r"><code>print(adjustmentSets(dag_A, &quot;SM&quot;, &quot;MH&quot;, type = &quot;all&quot;))</code></pre>
+<pre><code>## { U1, U2, W }</code></pre>
+<p>The ouput returned all adjustment sets possible. As we can see, we
+must adjust for U1, U2, AND W. Adjusting for only one or two of those
+would not work. In this first case, we learned that given our DAG has
+potential unobserved confounders, we have a biased regression if we
+simply condition on the observed confounder (i.e., the “try out best to
+control all we have” solution does not work!)</p>
+</div>
+</div>
+<div id="dag-2-collider-bias" class="section level3">
+<h3>DAG #2: Collider Bias</h3>
+<p>Here are our variables: SM = Social media use MH = Mental health U =
+Unobserved background confounders (neuroticism, pre-existing MH) C =
+In-person social interaction (the hypothesized collider)</p>
+<p>C is a collider because both X and Y affect it: SM → C : Substitution
+— heavy social media use displaces time that would otherwise be spent
+face-to-face (more SM → less in-person) MH → C : Social withdrawal —
+depression and anxiety reduce motivation and ability to engage in
+in-person social activities (worse MH → less in-person interaction)</p>
+<p>Since C has two causes on the path of interest (SM and MH), C is a
+collider on the path SM → C ← MH. The standard DAG result: conditioning
+on a collider <em>opens</em> a path between its causes. So including C
+as a covariate does not “control for” in-person socializing in a neutral
+way, but introduces a spurious relationship between SM and MH.</p>
+<div id="daggity-for-dag-2" class="section level4">
+<h4>Daggity for DAG #2</h4>
+<p>Again, let’s first define our DAG.</p>
+<pre class="r"><code>dag_B &lt;- dagitty(&#39;dag {
+  SM 
+  MH 
+  U  [latent]
+  C  
+  
+  SM -&gt; MH
+  U  -&gt; SM
+  U  -&gt; MH
+  SM -&gt; C
+  MH -&gt; C
+}&#39;)</code></pre>
+<p>We can do the same thing here with seeing minimal adjustment sets for
+SM-&gt;MH. Meaning, what can we control for given the data we have?</p>
+<pre class="r"><code>print(adjustmentSets(dag_B, &quot;SM&quot;, &quot;MH&quot;, type = &quot;minimal&quot;))</code></pre>
+<p>Well, nothing! There’s nothing we can do! What if we had all data?
+What would we control for?</p>
+<pre class="r"><code>print(adjustmentSets(dag_B, &quot;SM&quot;, &quot;MH&quot;, type = &quot;all&quot;))</code></pre>
+<pre><code>## { U }</code></pre>
+<p>Notice here that “C” is not in the output! This means that there is
+no case in which controlling for the collider would produce an unbiased
+estimator.</p>
+<p>Now, we can more clearly see the issue with controlling for a
+collider here. We can compare the before and after of 1) not controlling
+for the collider and 2) controlling for the collider.</p>
+<pre class="r"><code>paths(dag_B, &quot;SM&quot;, &quot;MH&quot;, Z = c(&quot;U&quot;))</code></pre>
+<pre><code>## $paths
+## [1] &quot;SM -&gt; C &lt;- MH&quot; &quot;SM -&gt; MH&quot;      &quot;SM &lt;- U -&gt; MH&quot;
+## 
+## $open
+## [1] FALSE  TRUE FALSE</code></pre>
+<pre class="r"><code>paths(dag_B, &quot;SM&quot;, &quot;MH&quot;, Z = c(&quot;U&quot;, &quot;C&quot;))</code></pre>
+<pre><code>## $paths
+## [1] &quot;SM -&gt; C &lt;- MH&quot; &quot;SM -&gt; MH&quot;      &quot;SM &lt;- U -&gt; MH&quot;
+## 
+## $open
+## [1]  TRUE  TRUE FALSE</code></pre>
+<p>We can see the in the first equation, SM -&gt; C &lt;- MH, is blocked
+(or closed). This is a good thing. We correctly control for U, and our
+only open path is the direct effect of SM -&gt; MH. This is perfect!</p>
+<p>However, in the second one, we opened the path SM -&gt; C &lt;- MH.
+This introduces bias and we now have an opened backdoor path! We now
+have some additional spurrious association betweeen SM and MH.</p>
+<p>Another thing we can do to more clearly show this is with dagitty’s
+simulations. Here, we can define the true effect and observe what
+happens when we control for things. Let’s say SM affects MH by 0.30
+units. This is the SM -&gt; MH path, with beta = 0.30.</p>
+<pre class="r"><code>dag_B_sim &lt;- dagitty(&#39;dag {
+  U 
+  SM [exposure]
+  MH [outcome]
+  C
+
+  U -&gt; SM [beta=0.4]
+  U -&gt; MH [beta=0.4]
+  SM -&gt; MH [beta=0.3]
+  SM -&gt; C  [beta=0.4]
+  MH -&gt; C  [beta=0.4]
+}&#39;)
+
+set.seed(123)
+fake_data &lt;- simulateSEM(dag_B_sim, N = 10000)</code></pre>
+<p>Now, here’s the first test, which controls for U (unobserved
+covariate. We pretend we can control for it…).</p>
+<pre class="r"><code>model_perfect &lt;- lm(MH ~ SM + U, data = fake_data)
+coef(model_perfect)</code></pre>
+<pre><code>##  (Intercept)           SM            U 
+## -0.002106275  0.288793206  0.390147287</code></pre>
+<p>Here, the estimate for SM’s effect is 0.289. Pretty close to our
+defined 0.30! Now, let’s test controlling for U AND for the collider
+(in-person social interaction).</p>
+<pre class="r"><code>model_mistake &lt;- lm(MH ~ SM + U + C, data = fake_data)
+coef(model_mistake)</code></pre>
+<pre><code>## (Intercept)          SM           U           C 
+## 0.001072084 0.077429873 0.324401644 0.404580820</code></pre>
+<p>The estimate of social media’s effect drops to 0.077! Potentially a
+null effect now, because we controlled for a collider. We know (since we
+defined it) that the true effect is 0.30, but our regression is biased.
+Don’t control for colliders!!!!</p>
+</div>
+</div>
+<div id="dag-3-controlling-for-a-mediator" class="section level3">
+<h3>DAG #3: Controlling for a Mediator</h3>
+<p>Variables: SM = Social media use Sl = Sleep disruption (mediator on
+the SM -&gt; MH path) MH = Mental health U = Background confounders of
+SM and MH (unobserved) Uc = Confounders specific to sleep AND mental
+health (unobserved) - Examples: chronic stress (disrupts sleep AND
+worsens MH directly); physical health conditions; major life events
+unrelated to SM</p>
+<p>The mediated path SM → Sleep → MH captures the “phone in the bedroom”
+effect: SM → Sleep: Blue-light exposure affects sleep; bedtime scrolling
+delays sleep onset. Sleep → MH: Poor sleep quality and duration are
+strong predictors of depression and anxiety severity.</p>
+<pre class="r"><code>dag_C &lt;- dagitty(&#39;dag {
+  SM 
+  Sl 
+  MH 
+  U  [latent]
+  Uc [latent]
+  
+  SM -&gt; Sl
+  Sl -&gt; MH
+  SM -&gt; MH
+  U  -&gt; SM
+  U  -&gt; MH
+  Uc -&gt; Sl
+  Uc -&gt; MH
+}&#39;)</code></pre>
+<p>These are all our paths:</p>
+<pre class="r"><code>print(paths(dag_C, &quot;SM&quot;, &quot;MH&quot;)$paths)</code></pre>
+<pre><code>## [1] &quot;SM -&gt; MH&quot;             &quot;SM -&gt; Sl -&gt; MH&quot;       &quot;SM -&gt; Sl &lt;- Uc -&gt; MH&quot;
+## [4] &quot;SM &lt;- U -&gt; MH&quot;</code></pre>
+<p>Let’s see what we can do to close our backdoor paths for SM to
+MH.</p>
+<pre class="r"><code>print(adjustmentSets(dag_C, &quot;SM&quot;, &quot;MH&quot;, type = &quot;all&quot;))</code></pre>
+<pre><code>## { U }
+## { U, Uc }</code></pre>
+<p>Either one of those solutions work. We can control for U or both U
+and Uc!</p>
+<p>Here are the two problems with controlling for Sleep: 1. Blocks the
+indirect path SM → Sleep → MH, so the regression coefficient on SM
+estimates only the direct path, underestimating total effect. 2. To
+complicate things, Uc confounds Sleep and MH. In our example, sleep is a
+collider for SM and Uc. Once we condition on Sleep (a descendant of both
+SM and Uc), we open what’s called an “M-bias path”: SM → Sleep ← Uc →
+MH. The “direct effect” estimate of SM on MH after conditioning on Sleep
+is now affected by Uc. By trying to block a mediator (to observe direct
+effects), we now turned sleep into an active collider, opening a
+backdoor path!</p>
+</div>
+</div>
 
 
 

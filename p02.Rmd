@@ -1,5 +1,131 @@
 ---
-title: "Portfolio 2"
+title: "Visualizing Abstracts"
+author: Haley Lam
+date: "2026-02-13"
+output:
+        html_document:
+                theme: cosmo
 ---
 
-> The projects should be numbered consecutively (i.e., in the order in which you began them), and should include for each project a description of the goal, the product (computer program, hand graph, computer graph, etc.), the data, and some interpretation. Reports must be reproducible and of high quality in terms of writing, grammar, presentation, etc.
+The focus of this document is to compare word clouds between the three journals.
+
+## 1) Load Data
+Let's first load the data.
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(tidytext)
+library(wordcloud)
+combined <- read_csv("Combined.csv")
+```
+
+How many rows actually have abstracts?
+```{r}
+sum(!is.na(combined$Abstract))
+```
+We have `r sum(!is.na(combined$Abstract))` available abstracts.
+
+## 2) Tokenize Abstracts into Individual Words
+
+Split each word in an abrstract into one row per word.
+```{r}
+words <- combined %>%
+        filter(!is.na(Abstract)) %>%
+        select(Journal, Abstract) %>%
+        unnest_tokens(word, Abstract)
+```
+We now have `r nrow(words)` rows (i.e., words)!
+
+Here is where I realized that the abstracts were truncated. So, these are not full abstracts, possibly because of publish & perish limitations.
+
+## 3) Remove "Stop Words"
+
+There's this dataset from the tidytext package that contains common words like "the", "and", "is" etc. We can use anti_join to remove those words, since they aren't of interest for our word cloud.
+
+```{r}
+words <- words %>% 
+        anti_join(stop_words, by = "word")
+```
+There are now `r nrow(words)` number of words remaining.
+
+Here are the top words:
+```{r}
+words %>%
+        count(word, sort = TRUE) %>%
+        head(20)
+```
+
+## 4) Make the Clouds
+
+First, let's do JPSP:
+
+```{r}
+jpsp_freq <- words %>%
+        filter(Journal == "JPSP") %>%
+        count(word, sort = TRUE) %>%
+        head(80)
+
+wordcloud(
+        words = jpsp_freq$word,
+        freq = jpsp_freq$n,
+        max.words = 80,
+        scale = c(2, 0.3),
+        colors = brewer.pal(8, "Dark2")
+)
+```
+
+Next, let's do PSPB:
+
+```{r}
+pspb_freq <- words %>%
+        filter(Journal == "PSPB") %>%
+        count(word, sort = TRUE) %>%
+        head(80)
+
+wordcloud(
+        words = pspb_freq$word,
+        freq = pspb_freq$n,
+        max.words = 80,
+        scale = c(2, 0.3),
+        colors = brewer.pal(8, "Dark2")
+)
+```
+
+Lastly, SPPS:
+
+```{r}
+spps_freq <- words %>%
+        filter(Journal == "SPPS") %>%
+        count(word, sort = TRUE) %>%
+        head(80)
+
+wordcloud(
+        words = spps_freq$word,
+        freq = spps_freq$n,
+        max.words = 80,
+        scale = c(2, 0.3),
+        colors = brewer.pal(8, "Dark2")
+)
+```
+
+
+It isn't actually very clear from those word clouds. They look similar. Let's try another format:
+
+```{r}
+top_words <- words %>%
+        count(Journal, word, sort = TRUE) %>%
+        group_by(Journal) %>%
+        slice_max(n, n = 15) %>%
+        ungroup() %>%
+        mutate(word_ordered = reorder_within(word, n, Journal))
+
+ggplot(top_words, aes(x = word_ordered, y = n, fill = Journal)) +
+        geom_col(show.legend = FALSE) + 
+        coord_flip() + 
+        facet_wrap(~ Journal, scales = "free_y") + 
+        scale_x_reordered() +
+        labs(x = NULL, y = "Count", title = "Most Frequent Abstract Words by Journal") +
+        theme_minimal()
+```
+
+JPSP interestingly mentions "social" more than the other two journals, but also "personality"! "Relationship" consistently showed up on all three, which I assume is mostly the statistical kind of "relationship" rather than human relationships. The other words are mostly ones that are expected to appear within all kinds of research (e.g., studies/study, individuals, etc.). 

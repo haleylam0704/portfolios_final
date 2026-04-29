@@ -9,14 +9,16 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
+<meta name="author" content="Haley Lam" />
 
+<meta name="date" content="2026-04-29" />
 
-<title>Portfolio 8</title>
+<title>Robustness Checks for the Effects of Social Media on Mental Health</title>
 
-<script src="site_libs/header-attrs-2.30/header-attrs.js"></script>
+<script src="site_libs/header-attrs-2.31/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link href="site_libs/bootstrap-3.3.5/css/bootstrap.min.css" rel="stylesheet" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
 <script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
@@ -278,6 +280,9 @@ $(document).ready(function () {
 <li>
   <a href="p10.html">Portfolio 10</a>
 </li>
+<li>
+  <a href="p11.html">Portfolio 11</a>
+</li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         
@@ -290,18 +295,209 @@ $(document).ready(function () {
 
 
 
-<h1 class="title toc-ignore">Portfolio 8</h1>
+<h1 class="title toc-ignore">Robustness Checks for the Effects of Social
+Media on Mental Health</h1>
+<h4 class="author">Haley Lam</h4>
+<h4 class="date">2026-04-29</h4>
 
 </div>
 
 
-<blockquote>
-<p>The projects should be numbered consecutively (i.e., in the order in
-which you began them), and should include for each project a description
-of the goal, the product (computer program, hand graph, computer graph,
-etc.), the data, and some interpretation. Reports must be reproducible
-and of high quality in terms of writing, grammar, presentation, etc.</p>
-</blockquote>
+<div id="overview" class="section level3">
+<h3>Overview</h3>
+<p>This portfolio continues our simulations and study of the effects of
+social media on mental health. In portfolio 6, we simulated a 2x2 DiD
+and compared estimates to an OLS regression. We also plotted an example
+with 6 time periods. Portfolio 7 dug a little deeper into the 6 time
+period example by doing an event study to check for the parallel trends
+assumption. The current portfolio will conduct some robustness checks
+with a Monte Carlo Simulation and sensitivity analyses!</p>
+</div>
+<div id="load-packages-and-simulation-same-as-portfolio-6"
+class="section level2">
+<h2>1. Load Packages and Simulation (same as portfolio #6)</h2>
+<pre class="r"><code>library(ggplot2)
+library(tidyverse)
+library(broom)
+
+COL_BIAS    &lt;- &quot;#E41A1C&quot;   # red — biased / confounded
+COL_DID     &lt;- &quot;#377EB8&quot;   # blue — DiD / identified
+COL_DIMMED  &lt;- &quot;#BBBBBB&quot;   # gray — dimmed paths
+COL_TRUE    &lt;- &quot;#333333&quot;   # dark gray — true effect line
+
+simulate_did &lt;- function(N = 200, delta = 0.085, gamma_u = 0.30, 
+                         gamma_w = 0.15, time_trend = 0.05, seed = NULL) {
+  if (!is.null(seed)) set.seed(seed)
+  n_treat &lt;- N / 2
+  n_ctrl  &lt;- N / 2
+
+  U     &lt;- rnorm(N)                              
+  W     &lt;- rnorm(N)                              
+  Treat &lt;- rep(c(1, 0), each = n_treat)      
+
+  periods &lt;- 1:6
+  treat_time &lt;- 4
+
+  df &lt;- expand.grid(college = 1:N, period = periods) %&gt;%
+    mutate(
+      U = U[college],
+      W = W[college],
+      Treat = Treat[college],
+      Post = as.integer(period &gt;= treat_time), 
+      D = Treat * Post                         
+    )
+
+  df &lt;- df %&gt;%
+    mutate(
+      e_sm = rnorm(n(), 0, 0.5),
+      e_mh = rnorm(n(), 0, 0.5),
+      SM = gamma_w * W + gamma_u * U + D + e_sm,
+      MH = delta * SM + gamma_u * U + gamma_w * W + time_trend * (period - 1) + e_mh
+    )
+
+  return(df)
+}</code></pre>
+</div>
+<div id="sampling-variance-monte-carlo-simulation"
+class="section level2">
+<h2>2. Sampling Variance (Monte Carlo Simulation)</h2>
+<pre class="r"><code>set.seed(471)
+n_sims &lt;- 1000 # simulate 1000 studies
+
+# empty data frame to store results (blank placeholders)
+results &lt;- data.frame(
+  sim       = 1:n_sims,
+  ols_naive = NA_real_,
+  ols_adj   = NA_real_,
+  did       = NA_real_
+)</code></pre>
+<p>Now we can define our Monte Carlo loop. As defined in the previous
+code, we’re going to run this 1,000 times (i.e., simulate 1,000
+studies).</p>
+<pre class="r"><code>for (i in 1:n_sims) {
+  df_i &lt;- simulate_did(N = 200) # first, generate sample of 200 colleges
+  df_post_i &lt;- df_i %&gt;% filter(Post == 1) # for OLS, we only use post-rollout period
+  
+  # Then, we run the models and take out the coefficients, saving it to row i.
+  
+  results$ols_naive[i] &lt;- coef(lm(MH ~ SM, data = df_post_i))[&quot;SM&quot;] # Model 1: Treat vs. Control (naive OLS)
+  results$ols_adj[i] &lt;- coef(lm(MH ~ SM + W, data = df_post_i))[&quot;SM&quot;] # Model 2: Treat vs. Control with covariate W
+  
+  results$did[i] &lt;- coef(lm(MH ~ Treat * Post, data = df_i))[&quot;Treat:Post&quot;] # Model 3: Diff-in-diff
+}</code></pre>
+<p>Now, below are the means and standard deviations across our 1,000
+studies. Keep in mind that our true causal effect (delta) is 0.085!</p>
+<pre class="r"><code># Naive OLS
+mean(results$ols_naive)</code></pre>
+<pre><code>## [1] 0.2667071</code></pre>
+<pre class="r"><code>sd(results$ols_naive)</code></pre>
+<pre><code>## [1] 0.03436421</code></pre>
+<pre class="r"><code># Adjusted for W OLS
+mean(results$ols_adj)</code></pre>
+<pre><code>## [1] 0.2361645</code></pre>
+<pre class="r"><code>sd(results$ols_adj)</code></pre>
+<pre><code>## [1] 0.03344954</code></pre>
+<pre class="r"><code># DiD
+mean(results$did)</code></pre>
+<pre><code>## [1] 0.08356503</code></pre>
+<pre class="r"><code>sd(results$did)</code></pre>
+<pre><code>## [1] 0.05543945</code></pre>
+<p>The diff-in-diff estimate was 0.0852. The other two OLS estimates
+overestimated the effects of social media, by a lot! This was similar to
+what we saw in portfolio 6. Now, let’s do the cool part and look at the
+sampling distributions!</p>
+<pre class="r"><code># First pivot to long format for ggplot
+results_long &lt;- results %&gt;%
+  pivot_longer(cols = c(ols_naive, ols_adj, did),
+               names_to = &quot;estimator&quot;, values_to = &quot;estimate&quot;) %&gt;%
+  mutate(estimator = factor(estimator,
+                            levels = c(&quot;ols_naive&quot;, &quot;ols_adj&quot;, &quot;did&quot;),
+                            labels = c(&quot;OLS (no controls)&quot;, &quot;OLS (with W)&quot;, &quot;DiD&quot;)))
+
+fig_mc &lt;- ggplot(results_long, aes(x = estimate, fill = estimator)) +
+  geom_density(alpha = 0.5, color = NA) +
+  geom_vline(xintercept = 0.085, linetype = &quot;dashed&quot;, color = COL_TRUE) +
+  annotate(&quot;text&quot;, x = 0.085, y = Inf, label = &quot;True causal effect = 0.085&quot;,
+           vjust = 1.5, hjust = -0.1, size = 3.5, color = COL_TRUE) +
+  scale_fill_manual(values = c(&quot;OLS (no controls)&quot; = COL_BIAS,
+                               &quot;OLS (with measured confounder)&quot; = &quot;#FF9999&quot;,
+                               &quot;DiD&quot; = COL_DID)) +
+  labs(title = &quot;Monte Carlo: Sampling Distributions&quot;,
+       subtitle = &quot;1,000 simulated datasets (N = 200)&quot;,
+       x = &quot;Estimated Effect on Mental Health (SD units)&quot;,
+       y = &quot;Density&quot;,
+       fill = &quot;Estimator&quot;)
+fig_mc</code></pre>
+<p><img src="p08_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
+<p>Interestingly, the OLS simulations have less variance. I’m not quite
+sure why. It might have to do with how it’s only using 3 periods of
+data, while DiD in this example uses 6?</p>
+</div>
+<div id="sampling-variance-monte-carlo-simulation-1"
+class="section level2">
+<h2>3. Sampling Variance (Monte Carlo Simulation)</h2>
+<p>Another way to look at the differences between results from OLS and
+DiD is through a sensitivity analysis. Here, we’ll be changing the
+influence of the unobserved confounders.</p>
+<pre class="r"><code># gamma_grid is like a volume dial for our confounder (gamma is the Greek letter that causal geeks use for covariates/confounders). We can set it to range from 0 (unconfoundness) to 0.60 (huge confounding).
+gamma_grid &lt;- seq(0, 0.6, by = 0.05)
+
+# We&#39;ll be running 200 studies per dial setting
+n_sims_sens &lt;- 200  
+sens_results &lt;- data.frame()
+
+# Here&#39;s a nested loop, with the outer loop turning the gamma dial. 
+set.seed(471)
+for (g in gamma_grid) {
+  
+  # The inner loop &#39;i&#39; runs 200 studies at that specific volume setting.
+  for (i in 1:n_sims_sens) {
+    df_i &lt;- simulate_did(N = 200, gamma_u = g)
+    df_post_i &lt;- df_i %&gt;% filter(Post == 1)
+
+    ols_est &lt;- coef(lm(MH ~ SM, data = df_post_i))[&quot;SM&quot;]
+    did_est &lt;- coef(lm(MH ~ Treat * Post, data = df_i))[&quot;Treat:Post&quot;]
+
+    # bind each new result to the bottom of the dataset as the loop runs.
+    sens_results &lt;- rbind(sens_results,
+                          data.frame(gamma_u = g, estimator = &quot;OLS&quot;, estimate = ols_est),
+                          data.frame(gamma_u = g, estimator = &quot;DiD&quot;, estimate = did_est))
+  }
+}
+
+# Then, group by dial setting and calculate 1) average estimate 2) 95% conf interval
+sens_summary &lt;- sens_results %&gt;%
+  group_by(gamma_u, estimator) %&gt;%
+  summarize(
+    mean_est = mean(estimate),
+    lo = quantile(estimate, 0.025), 
+    hi = quantile(estimate, 0.975),
+    .groups = &quot;drop&quot;
+  )
+
+# Lastly, plot sensitivity lines
+fig_sens &lt;- ggplot(sens_summary, aes(x = gamma_u, y = mean_est, color = estimator, fill = estimator)) +
+  geom_ribbon(aes(ymin = lo, ymax = hi), alpha = 0.15, color = NA) + # shaded CI
+  geom_line() +
+  geom_point() +
+  geom_hline(yintercept = 0.085, linetype = &quot;dashed&quot;, color = COL_TRUE) +
+  annotate(&quot;text&quot;, x = 0.6, y = 0.085, label = &quot;True delta&quot;,
+           vjust = -0.8, hjust = 1, size = 3.5, color = COL_TRUE, fontface = &quot;bold&quot;) +
+  scale_color_manual(values = c(&quot;OLS&quot; = COL_BIAS, &quot;DiD&quot; = COL_DID)) +
+  scale_fill_manual(values = c(&quot;OLS&quot; = COL_BIAS, &quot;DiD&quot; = COL_DID)) +
+  labs(title = &quot;Sensitivity: When does DiD fail?&quot;,
+       x = expression(paste(&quot;Confounding Strength (&quot;, gamma[U], &quot;)&quot;)),
+       y = &quot;Mean Estimated Effect (SD units)&quot;,
+       color = &quot;Estimator&quot;, fill = &quot;Estimator&quot;)
+fig_sens</code></pre>
+<p><img src="p08_files/figure-html/unnamed-chunk-6-1.png" width="672" /></p>
+<p>When does DiD fail? Never! Well… at least for this pedagogical point,
+the DiD estimate is not affected by stable unmeasured confounders. It’s
+immune to permanent (unmeasured) traits. OLS on the other hand, since
+it’s not design-based inference (but rather model-based inference), the
+accuracy of the estimated causal effect depends on how much unmeasured
+confouding exists.</p>
+</div>
 
 
 

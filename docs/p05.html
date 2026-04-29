@@ -9,14 +9,16 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
+<meta name="author" content="Haley Lam" />
 
+<meta name="date" content="2026-04-29" />
 
-<title>Portfolio 5</title>
+<title>Drawing Beautiful DAGs With ggplot2</title>
 
-<script src="site_libs/header-attrs-2.30/header-attrs.js"></script>
+<script src="site_libs/header-attrs-2.31/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link href="site_libs/bootstrap-3.3.5/css/bootstrap.min.css" rel="stylesheet" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
 <script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
@@ -278,6 +280,9 @@ $(document).ready(function () {
 <li>
   <a href="p10.html">Portfolio 10</a>
 </li>
+<li>
+  <a href="p11.html">Portfolio 11</a>
+</li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         
@@ -290,18 +295,241 @@ $(document).ready(function () {
 
 
 
-<h1 class="title toc-ignore">Portfolio 5</h1>
+<h1 class="title toc-ignore">Drawing Beautiful DAGs With ggplot2</h1>
+<h4 class="author">Haley Lam</h4>
+<h4 class="date">2026-04-29</h4>
 
 </div>
 
 
-<blockquote>
-<p>The projects should be numbered consecutively (i.e., in the order in
-which you began them), and should include for each project a description
-of the goal, the product (computer program, hand graph, computer graph,
-etc.), the data, and some interpretation. Reports must be reproducible
-and of high quality in terms of writing, grammar, presentation, etc.</p>
-</blockquote>
+<div id="overview" class="section level2">
+<h2>Overview</h2>
+<p>In Portfolio 4, we used dagitty to formally define and analyze three
+causal DAG structures for the social media -&gt; mental health question:
+DAG A: Unmeasured confounding (U1, U2, W) DAG B: Collider bias
+(in-person social interaction) DAG C: Mediator conditioning (sleep
+disruption)</p>
+<p>Dagitty is great for the logic (e.g., adjustment sets, d-separation,
+path analysis). But its built-in plots and ggdag (the main visualization
+package) only draws circular nodes.</p>
+<p>This portfolio piece is about visualizing those same three DAGs
+beautifully using dagbox. It was written entirely by Claude Code
+(Anthropic). The package is available at:
+github.com/haleylam0704/dagbox</p>
+<div id="load-package" class="section level3">
+<h3>Load Package</h3>
+<pre class="r"><code>devtools::install_github(&quot;haleylam0704/dagbox&quot;)</code></pre>
+<pre><code>## Using GitHub PAT from the git credential store.</code></pre>
+<pre><code>## Skipping install of &#39;dagbox&#39; from a github remote, the SHA1 (40537005) has not changed since last install.
+##   Use `force = TRUE` to force installation</code></pre>
+<pre class="r"><code>library(dagbox)
+library(ggplot2)
+library(patchwork)</code></pre>
+</div>
+<div id="whats-the-issue-with-ggplot2" class="section level3">
+<h3>1: What’s the issue with ggplot2?</h3>
+<p>When drawing an arrow between two boxes in ggplot2, one way is to
+connect the center coordinates of each box with annotate(“segment”).
+However, the arrowhead ends up buried under the boxes. Let’s see how it
+works:</p>
+<pre class="r"><code>naive &lt;- ggplot() +
+  coord_fixed(xlim=c(0,5), ylim=c(0.8,2.2)) +
+  theme_void() +
+  annotate(&quot;segment&quot;,
+           x=1, y=1.5, xend=4, yend=1.5,
+           arrow=arrow(length=unit(0.3,&quot;cm&quot;), type=&quot;closed&quot;),
+           linewidth=1) +
+  # Boxes drawn on top (so the arrowhead is now hidden underneath)
+  annotate(&quot;rect&quot;, xmin=0.25, xmax=1.75, ymin=1.15, ymax=1.85,
+           fill=&quot;white&quot;, color=&quot;black&quot;, linewidth=0.7) +
+  annotate(&quot;text&quot;, x=1, y=1.5, label=&quot;Social Media\nUse&quot;, size=3) +
+  annotate(&quot;rect&quot;, xmin=3.25, xmax=4.75, ymin=1.15, ymax=1.85,
+           fill=&quot;white&quot;, color=&quot;black&quot;, linewidth=0.7) +
+  annotate(&quot;text&quot;, x=4, y=1.5, label=&quot;Mental\nHealth&quot;, size=3)
+naive</code></pre>
+<p><img src="p05_files/figure-html/unnamed-chunk-2-1.png" width="672" /></p>
+<p>As you can see, there are no arrows! Dagbox fixes this by computing
+where the line exits each box’s border (with some pretty complicated
+math!) and using those exit points as the actual arrow start and end.
+The math lives in an internal function called edge_endpoints() (that
+users never see).</p>
+</div>
+<div id="how-does-dagbox-work-from-the-users-perspective"
+class="section level3">
+<h3>2: How does dagbox work from the user’s perspective?</h3>
+<p>We need to input two dataframes.</p>
+<ol style="list-style-type: decimal">
+<li><p>NODES data frame — one row per variable: Required: id, label, x,
+y Optionally: latent (TRUE = dashed red border, the DAG convention for
+unobserved variables), color, width, height, fontface, border_lwd
+(thicker border to highlight special nodes)</p></li>
+<li><p>EDGES data frame — one row per arrow: Required: from, to (using
+node ids) Optional: color, linewidth, linetype</p></li>
+</ol>
+<p>dagbox_plot() will return a standard ggplot object, so you can keep
+adding to it with + just like any other ggplot2 figure.</p>
+<p>Here is a simple example, before moving on to the full examples:</p>
+<pre class="r"><code>nodes_simple &lt;- data.frame(
+  id     = c(&quot;X&quot;,             &quot;Y&quot;,           &quot;U&quot;),
+  label  = c(&quot;Treatment\n(X)&quot;, &quot;Outcome\n(Y)&quot;, &quot;Confounder\n(U)&quot;),
+  x      = c(1,               4,              2.5),
+  y      = c(1.5,             1.5,            3),
+  latent = c(FALSE,           FALSE,          TRUE)
+)
+
+edges_simple &lt;- data.frame(
+  from  = c(&quot;X&quot;, &quot;U&quot;, &quot;U&quot;),
+  to    = c(&quot;Y&quot;, &quot;X&quot;, &quot;Y&quot;),
+  color = c(&quot;black&quot;, &quot;red&quot;, &quot;red&quot;)
+)
+
+simple_dag &lt;- dagbox_plot(nodes_simple, edges_simple)
+simple_dag</code></pre>
+<p><img src="p05_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
+<p>Look how beautiful that DAG is! The arrows are perfectly aligned and
+they are in rectangular boxes. Amazing.</p>
+<p>Here is the naive vs. simple DAGs side by side:</p>
+<pre class="r"><code>naive + simple_dag</code></pre>
+<p><img src="p05_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
+<p>We now have visible arrows (and dashed boxes).</p>
+</div>
+<div id="dag-1-unmeasured-confounding" class="section level3">
+<h3>3: DAG #1: Unmeasured Confounding</h3>
+<p>From Portfolio 4: dagitty confirmed that no valid adjustment set
+exists when U1 and U2 are latent. W alone is insufficient. Here we
+visualize exactly that structure.</p>
+<p>Nodes: SM = Social media use MH = Mental health U1 = Neuroticism /
+pre-existing MH (latent) U2 = SES / family environment (latent) W =
+Observed covariates</p>
+<pre class="r"><code>COL_BIAS &lt;- &quot;#E41A1C&quot;   # red — confounders
+COL_OBS  &lt;- &quot;#4DAF4A&quot;   # green — observed covariates
+
+nodes_A &lt;- data.frame(
+  id         = c(&quot;SM&quot;, &quot;MH&quot;,
+                 &quot;U1&quot;, &quot;U2&quot;,
+                 &quot;W&quot;),
+  label      = c(&quot;Social Media\nUse (SM)&quot;, &quot;Mental\nHealth (MH)&quot;,
+                 &quot;Neuroticism /\nPre-existing MH (U1)&quot;, &quot;SES / Family\nEnvironment (U2)&quot;,
+                 &quot;Observed Covariates (W)\n(age, sex, parental education)&quot;),
+  x          = c(1.0,  4.0,  0.8,  4.2,  2.5),
+  y          = c(1.5,  1.5,  3.0,  3.0,  0.0),
+  width      = c(1.6,  1.6,  2.0,  1.9,  2.6),
+  latent     = c(FALSE,FALSE,TRUE, TRUE, FALSE),
+  color      = c(&quot;black&quot;,&quot;black&quot;, COL_BIAS, COL_BIAS, COL_OBS),
+  text_color = c(&quot;black&quot;,&quot;black&quot;, COL_BIAS, COL_BIAS, COL_OBS)
+)
+
+edges_A &lt;- data.frame(
+  from      = c(&quot;SM&quot;, &quot;U1&quot;,     &quot;U1&quot;,     &quot;U2&quot;,     &quot;U2&quot;,     &quot;W&quot;,     &quot;W&quot;),
+  to        = c(&quot;MH&quot;, &quot;SM&quot;,     &quot;MH&quot;,     &quot;SM&quot;,     &quot;MH&quot;,     &quot;SM&quot;,    &quot;MH&quot;),
+  color     = c(&quot;black&quot;, COL_BIAS, COL_BIAS, COL_BIAS, COL_BIAS, COL_OBS, COL_OBS),
+  linewidth = c(1.0,  1.1,      1.1,      1.1,      1.1,      0.7,     0.7)
+)
+
+dag_A &lt;- dagbox_plot(nodes_A, edges_A,
+                      xlim=c(-0.4, 5.6), ylim=c(-0.7, 3.7))
+dag_A</code></pre>
+<p><img src="p05_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
+<p>Great! Here we see the two unobserved confounders very clearly
+affected the causal structure.</p>
+</div>
+<div id="dag-b-collider-bias" class="section level3">
+<h3>4: DAG B — Collider Bias</h3>
+<p>In portfolio 4, we showed with dagitty simulation that controlling
+for C (in-person social interaction) drops the estimated SM-&gt;MH
+effect from 0.29 to 0.08 — even though we defined the true effect as
+0.30.</p>
+<pre class="r"><code>COL_COLLIDER &lt;- &quot;#FF7F00&quot;   # orange — collider
+
+nodes_B &lt;- data.frame(
+  id         = c(&quot;SM&quot;,                &quot;MH&quot;,
+                 &quot;U&quot;,                        &quot;C&quot;),
+  label      = c(&quot;Social Media\nUse (SM)&quot;, &quot;Mental\nHealth (MH)&quot;,
+                 &quot;Unobserved\nConfounders (U)&quot;,
+                 &quot;In-Person Social\nInteraction (C)&quot;),
+  x          = c(1.0,  4.0,  2.5,  2.5),
+  y          = c(1.5,  1.5,  3.0,  0.0),
+  latent     = c(FALSE,FALSE,TRUE, FALSE),
+  color      = c(&quot;black&quot;,&quot;black&quot;, COL_BIAS,    COL_COLLIDER),
+  text_color = c(&quot;black&quot;,&quot;black&quot;, COL_BIAS,    COL_COLLIDER),
+  fontface   = c(&quot;plain&quot;,&quot;plain&quot;,&quot;italic&quot;,    &quot;bold&quot;),
+  border_lwd = c(0.7,  0.7,  0.7,  1.4)    # thick border highlights the collider
+)
+
+edges_B &lt;- data.frame(
+  from      = c(&quot;SM&quot;,   &quot;U&quot;,      &quot;U&quot;,      &quot;SM&quot;,         &quot;MH&quot;),
+  to        = c(&quot;MH&quot;,   &quot;SM&quot;,     &quot;MH&quot;,     &quot;C&quot;,          &quot;C&quot;),
+  color     = c(&quot;black&quot;, COL_BIAS, COL_BIAS, COL_COLLIDER, COL_COLLIDER),
+  linewidth = c(1.0,    1.1,      1.1,      1.1,          1.1)
+)
+
+dag_B &lt;- dagbox_plot(nodes_B, edges_B,
+                      xlim=c(-0.4, 5.6), ylim=c(-0.75, 3.7)) +
+  annotate(&quot;text&quot;, x=2.5, y=-0.57,
+           label=&quot;COLLIDER: controlling for C opens a spurious SM-MH path&quot;,
+           size=2.4, color=COL_COLLIDER, fontface=&quot;italic&quot;, hjust=0.5)
+dag_B</code></pre>
+<p><img src="p05_files/figure-html/unnamed-chunk-6-1.png" width="672" /></p>
+<p>Again, a beautiful DAG!</p>
+</div>
+<div id="dag-c-conditioning-on-a-mediator" class="section level3">
+<h3>5: DAG C — Conditioning on a Mediator</h3>
+<p>From Portfolio 4: dagitty showed the valid adjustment sets do NOT
+include sleep (Sl). Conditioning on Sl blocks the indirect path AND
+opens an M-bias path through Uc.</p>
+<pre class="r"><code>COL_MEDIATOR &lt;- &quot;#984EA3&quot;   # purple — mediator
+
+nodes_C &lt;- data.frame(
+  id         = c(&quot;SM&quot;,                &quot;Sl&quot;,             &quot;MH&quot;,
+                 &quot;U&quot;,                      &quot;Uc&quot;),
+  label      = c(&quot;Social Media\nUse (SM)&quot;, &quot;Sleep\nDisruption (Sl)&quot;, &quot;Mental\nHealth (MH)&quot;,
+                 &quot;Background\nConfounders (U)&quot;,
+                 &quot;Sleep Confounders (Uc)\n(stress, physical health)&quot;),
+  x          = c(0.5,  2.5,  4.5,  2.5,  2.5),
+  y          = c(1.5,  2.3,  1.5,  3.2,  0.2),
+  width      = c(1.5,  1.6,  1.6,  2.0,  2.5),
+  latent     = c(FALSE,FALSE,FALSE,TRUE, TRUE),
+  color      = c(&quot;black&quot;, COL_MEDIATOR, &quot;black&quot;, COL_BIAS, COL_BIAS),
+  text_color = c(&quot;black&quot;, COL_MEDIATOR, &quot;black&quot;, COL_BIAS, COL_BIAS),
+  fontface   = c(&quot;plain&quot;, &quot;bold&quot;,       &quot;plain&quot;, &quot;italic&quot;, &quot;italic&quot;),
+  border_lwd = c(0.7,  1.4,  0.7,  0.7,  0.7)    # thick border on mediator
+)
+
+edges_C &lt;- data.frame(
+  from      = c(&quot;SM&quot;,        &quot;Sl&quot;,         &quot;SM&quot;,   &quot;U&quot;,      &quot;U&quot;,      &quot;Uc&quot;,     &quot;Uc&quot;),
+  to        = c(&quot;Sl&quot;,        &quot;MH&quot;,         &quot;MH&quot;,   &quot;SM&quot;,     &quot;MH&quot;,     &quot;Sl&quot;,     &quot;MH&quot;),
+  color     = c(COL_MEDIATOR, COL_MEDIATOR, &quot;black&quot;, COL_BIAS, COL_BIAS, COL_BIAS, COL_BIAS),
+  linewidth = c(1.1,         1.1,          1.0,    0.9,      0.9,      0.9,      0.9)
+)
+
+dag_C &lt;- dagbox_plot(nodes_C, edges_C,
+                      xlim=c(-0.4, 5.6), ylim=c(-0.4, 3.85)) +
+  annotate(&quot;text&quot;, x=1.52, y=2.18,
+           label=&quot;indirect\npath&quot;, size=2.1,
+           color=COL_MEDIATOR, fontface=&quot;italic&quot;, lineheight=0.85) +
+  annotate(&quot;text&quot;, x=2.47, y=1.12,
+           label=&quot;direct path&quot;, size=2.1,
+           color=&quot;black&quot;, fontface=&quot;italic&quot;) +
+  annotate(&quot;text&quot;, x=2.5, y=-0.22,
+           label=&quot;M-bias: SM -&gt; Sl &lt;- Uc -&gt; MH  (opens when Sl is conditioned on)&quot;,
+           size=2.2, color=COL_BIAS, fontface=&quot;italic&quot;, hjust=0.5)
+dag_C</code></pre>
+<p><img src="p05_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+</div>
+<div id="combined-figure" class="section level3">
+<h3>6: Combined Figure</h3>
+<p>Lastly, we can combine all three figures:</p>
+<pre class="r"><code>combined &lt;- dag_A / dag_B / dag_C
+    theme = theme(
+      plot.title    = element_text(face=&quot;bold&quot;, size=13),
+      plot.subtitle = element_text(size=9, color=&quot;gray35&quot;, lineheight=1.2)
+    )
+combined</code></pre>
+<p><img src="p05_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
+<p>It looks a bit scrunched up, but the idea was there. This package
+would be pretty useful for creating beautiful DAGs in the future!</p>
+</div>
+</div>
 
 
 

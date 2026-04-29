@@ -11,15 +11,15 @@
 
 
 
-<title>Portfolio 9</title>
+<title>p09.knit</title>
 
-<script src="site_libs/header-attrs-2.30/header-attrs.js"></script>
-<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<script src="site_libs/header-attrs/header-attrs.js"></script>
+<script src="site_libs/jquery/jquery-3.6.0.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link href="site_libs/bootstrap-3.3.5/css/bootstrap.min.css" rel="stylesheet" />
-<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
-<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
-<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<link href="site_libs/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap/shim/respond.min.js"></script>
 <style>h1 {font-size: 34px;}
        h1.title {font-size: 38px;}
        h2 {font-size: 30px;}
@@ -29,9 +29,9 @@
        h6 {font-size: 12px;}
        code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
        pre:not([class]) { background-color: white }</style>
-<script src="site_libs/navigation-1.1/tabsets.js"></script>
-<link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
-<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<script src="site_libs/navigation/tabsets.js"></script>
+<link href="site_libs/highlightjs/default.css" rel="stylesheet" />
+<script src="site_libs/highlightjs/highlight.js"></script>
 
 <style type="text/css">
   code{white-space: pre-wrap;}
@@ -278,6 +278,9 @@ $(document).ready(function () {
 <li>
   <a href="p10.html">Portfolio 10</a>
 </li>
+<li>
+  <a href="p11.html">Portfolio 11</a>
+</li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         
@@ -290,18 +293,411 @@ $(document).ready(function () {
 
 
 
-<h1 class="title toc-ignore">Portfolio 9</h1>
 
 </div>
 
 
+<div id="lab14" class="section level1">
+<h1>LAB: Large Language Models Lab</h1>
+<div id="using-llms-for-qualitative-coding"
+class="section level2 unnumbered">
+<h2 class="unnumbered">Using LLMs for Qualitative Coding</h2>
 <blockquote>
-<p>The projects should be numbered consecutively (i.e., in the order in
-which you began them), and should include for each project a description
-of the goal, the product (computer program, hand graph, computer graph,
-etc.), the data, and some interpretation. Reports must be reproducible
-and of high quality in terms of writing, grammar, presentation, etc.</p>
+<p>Note: This lab is in beta testing…</p>
 </blockquote>
+<p>Psychologists have been using qualitative coding for open-ended
+survey responses for a long time. This work is meaningful, but can get
+quite tedious at scale. What if an LLM can do that work for us?</p>
+<p>In this lab we’ll be using OpenAI’s API to automatically code 100
+real open-ended survey responses from <strong>HappyDB</strong>, a
+publicly available dataset of 100,000+ crowd-sourced happy moments (Asai
+et al., 2018). Along the way we’ll learn what an API can do that a chat
+interface cannot, how to control model behavior with parameters like
+temperature, and how to evaluate whether you’d trust this coding in a
+real study.</p>
+<p>The HappyDB dataset was collected by asking workers on Amazon
+Mechanical Turk: <em>“What made you happy today? Reflect on the past 24
+hours (or 3 months) and recall three actual events that happened to you
+that made you happy.”</em></p>
+<p>The dataset comes with two sets of category labels for each
+response:</p>
+<ul>
+<li><code>ground_truth_category</code> — assigned by human raters
+(majority vote of 5 raters)</li>
+<li><code>predicted_category</code> — assigned by the HappyDB authors’
+own machine learning classifier</li>
+</ul>
+<p>Your job is to add a third: the LLM’s label. Then you’ll compare all
+three.</p>
+</div>
+<div id="getting-started" class="section level2 unnumbered">
+<h2 class="unnumbered">Getting started</h2>
+<p>Go to the course GitHub organization and locate the lab repo, which
+should be named something like <code>lab-14...</code>. Either Fork it or
+use the template. Then clone it in RStudio. First, open the R Markdown
+document <code>lab-14.Rmd</code> and Knit it. Make sure it compiles
+without errors. The output will be in the file markdown <code>.md</code>
+file with the same name.</p>
+</div>
+<div id="learning-goals" class="section level2">
+<h2>Learning Goals</h2>
+<ul>
+<li>Make authenticated API calls to an LLM from R</li>
+<li>Understand what parameters like <code>temperature</code> and
+<code>max_tokens</code> do</li>
+<li>Loop API calls over rows of a real dataset</li>
+<li>Request and parse structured JSON output</li>
+<li>Critically evaluate AI-assisted qualitative coding against human
+ground truth</li>
+</ul>
+</div>
+<div id="setup" class="section level2">
+<h2>Setup</h2>
+<div id="api-key" class="section level3">
+<h3>API Key</h3>
+<p>You’ll need an OpenAI API key from the OpenAI Platform. If this is
+your first time, you will have to put $5 into your account. Expect to
+spend less than $0.05 for this lab. <strong>Do NOT hardcode your key in
+this file, and do not push your key to GitHub!</strong> Github will
+automatically notify you if you accidentally push your key, but doing so
+is dangerous. You don’t want people accessing your API key (and the
+money on your account)!</p>
+<p>So, we can set it as an environment variable using the line below.
+Replace “your-key-here” with your API key.</p>
+<pre class="r"><code>Sys.setenv(OPENAI_API_KEY = &quot;your-key-here&quot;)</code></pre>
+<p>Importantly, doing so will make sure your API key lives only in your
+environment and not in any of the files.</p>
+</div>
+<div id="packages" class="section level3 unnumbered">
+<h3 class="unnumbered">Packages</h3>
+<pre class="r"><code>library(tidyverse)
+library(httr2)
+library(jsonlite)</code></pre>
+<p>The httr2 package will allow us to interact with web APIs.</p>
+</div>
+<div id="the-data" class="section level3 unnumbered">
+<h3 class="unnumbered">The data</h3>
+<p>HappyDB is freely available on GitHub. We can load it directly:</p>
+<pre class="r"><code>hm &lt;- read_csv(
+  &quot;https://raw.githubusercontent.com/megagonlabs/HappyDB/master/happydb/data/cleaned_hm.csv&quot;,
+  show_col_types = FALSE
+)
+
+glimpse(hm)</code></pre>
+<p>Variables:</p>
+<ul>
+<li><code>hmid</code>: unique ID for each happy moment</li>
+<li><code>wid</code>: worker ID (links to demographic.csv)</li>
+<li><code>reflection_period</code>: whether the worker was asked about
+the past 24h or 3m (3 months)</li>
+<li><code>original_hm</code>: the raw text exactly as the worker typed
+it</li>
+<li><code>cleaned_hm</code>: spell-corrected version (the one we
+use)</li>
+<li><code>modified</code>: whether the spell corrector changed anything
+(TRUE/FALSE)</li>
+<li><code>num_sentence</code>: number of sentences in the happy
+moment</li>
+<li><code>ground_truth_category</code>: human majority-vote label (lots
+of NAs because only ~15,000 of 100,000 were human-labeled)</li>
+<li><code>predicted_category</code>: the HappyDB classifier’s label for
+all rows</li>
+</ul>
+</div>
+<div id="part-1-exploring-the-data" class="section level3 unnumbered">
+<h3 class="unnumbered">Part 1: Exploring the data</h3>
+<ol style="list-style-type: decimal">
+<li><p>How many rows does the full dataset have? What does each row
+represent?</p></li>
+<li><p>How many rows has a human ground truth label? What fraction of
+the full dataset is that?</p></li>
+</ol>
+<p>Now, let’s take a random sample of 100 rows that <em>have a ground
+truth label</em>. Use <code>set.seed(1)</code> so we all work with the
+same sample.</p>
+<pre class="r"><code>set.seed(1)
+
+hm_sample &lt;- hm %&gt;%
+  filter(!is.na(ground_truth_category)) %&gt;%
+  slice_sample(n = 100)</code></pre>
+<ol start="3" style="list-style-type: decimal">
+<li>The seven categories are: <em>achievement, affection, bonding,
+enjoy_the_moment, exercise, leisure, nature</em>. Look at the first 5
+rows. Do the human labels seem reasonable to you? Are there any you
+would have coded differently?</li>
+</ol>
+<pre class="r"><code>hm_sample %&gt;%
+  select(cleaned_hm, ground_truth_category, predicted_category) %&gt;%
+  head(5)</code></pre>
+</div>
+<div id="part-2-first-api-call" class="section level3 unnumbered">
+<h3 class="unnumbered">Part 2: First API Call</h3>
+<p>Below we define a function that sends a single happy moment to the
+OpenAI API and returns the raw response. Read through it carefully to
+see how things work. We’ll be using gpt-4.1-mini because it is
+relatively cheap. Feel free to use different models to see if there are
+notable changes in performance! You can see their pricings and models if
+you google “OpenAI API Pricing”.</p>
+<pre class="r"><code>call_openai &lt;- function(text, temperature = 0, api_key = Sys.getenv(&quot;OPENAI_API_KEY&quot;)) {
+  
+  prompt &lt;- paste0(
+    &quot;You are helping to code open-ended survey responses.\n\n&quot;,
+    &quot;Classify the following happy moment into exactly one of these seven categories:\n&quot;,
+    &quot;achievement, affection, bonding, enjoy_the_moment, exercise, leisure, nature\n\n&quot;,
+    &quot;Definitions:\n&quot;,
+    &quot;- achievement: completing a task or goal with extra effort\n&quot;,
+    &quot;- affection: meaningful interaction with family, loved ones, or pets\n&quot;,
+    &quot;- bonding: meaningful interaction with friends or colleagues\n&quot;,
+    &quot;- enjoy_the_moment: being aware of or savoring the present environment\n&quot;,
+    &quot;- exercise: intentional physical activity or workout\n&quot;,
+    &quot;- leisure: recreational activity done regularly for pleasure\n&quot;,
+    &quot;- nature: being outdoors or in nature\n\n&quot;,
+    &quot;Respond ONLY with valid JSON in this exact format, no other text:\n&quot;,
+    &quot;{\&quot;category\&quot;: \&quot;&lt;category&gt;\&quot;, \&quot;confidence\&quot;: \&quot;&lt;high|medium|low&gt;\&quot;}\n\n&quot;,
+    &quot;Happy moment: &quot;, text
+  )
+  
+  response &lt;- request(&quot;https://api.openai.com/v1/chat/completions&quot;) %&gt;%
+    req_headers(
+      &quot;Authorization&quot; = paste(&quot;Bearer&quot;, api_key),
+      &quot;Content-Type&quot;  = &quot;application/json&quot;
+    ) %&gt;%
+    req_body_json(list(
+      model       = &quot;gpt-4.1-mini&quot;,
+      temperature = temperature,
+      max_tokens  = 50, # maximum output tokens
+      messages    = list(
+        list(role = &quot;user&quot;, content = prompt)
+      )
+    )) %&gt;%
+    req_perform() %&gt;% 
+    resp_body_json()
+  
+  response
+}</code></pre>
+<p>Now call the function on a single happy moment and inspect the
+response:</p>
+<pre class="r"><code>example_text &lt;- hm_sample$cleaned_hm[1]
+cat(&quot;Happy moment:&quot;, example_text, &quot;\n\n&quot;)
+
+response &lt;- call_openai(example_text)
+
+# The model&#39;s reply is nested inside the response object
+raw_reply &lt;- response$choices[[1]]$message$content
+raw_reply
+
+# Token usage
+response$usage$prompt_tokens
+response$usage$completion_tokens</code></pre>
+<ol start="4" style="list-style-type: decimal">
+<li>What did the model return? Does the category seem right to you? Look
+at the <code>usage</code> object. If each completion uses roughly this
+many tokens, and <code>gpt-4.1-mini</code> costs $0.40 per million input
+tokens and $1.60 per million output tokens, roughly how much would it
+cost to run all 100 rows?</li>
+</ol>
+</div>
+<div id="part-3-playing-around-with-temperature"
+class="section level3 unnumbered">
+<h3 class="unnumbered">Part 3: Playing Around With Temperature</h3>
+<p><code>temperature</code> controls how deterministic the model’s
+output is. At temperature = 0 the model almost always picks the
+highest-probability token, giving you identical outputs every time.
+Higher temperatures introduce randomness — useful for creative tasks
+like brainstorming or text generation, but undesirable for coding tasks
+where you want reproducibility. For classification specifically,
+temperature has little effect when the model is confident — which is
+actually reassuring for our purposes. For the rest of this lab we use
+temperature=0.</p>
+<p>Run the same happy moment 5 times at
+<code>temperature = 0</code>:</p>
+<pre class="r"><code>temp0_results &lt;- map_chr(1:5, function(i) {
+  r &lt;- call_openai(&quot;my dad presented me a new laptop surprisingly on my birthday&quot;, temperature = 0)
+  r$choices[[1]]$message$content
+})
+
+temp0_results</code></pre>
+<p>Now run it 10 times at <code>temperature = 2</code>:</p>
+<pre class="r"><code>temp2_results &lt;- map_chr(1:10, function(i) {
+  r &lt;- call_openai(&quot;my dad presented me a new laptop surprisingly on my birthday&quot;, temperature = 2)
+  r$choices[[1]]$message$content
+})
+
+temp2_results</code></pre>
+<ol start="5" style="list-style-type: decimal">
+<li>Do you notice anything different? Since LLMs produce different
+output for each run, there might not be differences in your runs. Even
+so, based on the concept of <code>temperature</code>, which setting
+might be most fit for our task? Why?</li>
+</ol>
+</div>
+<div id="part-4-batch-processing" class="section level3 unnumbered">
+<h3 class="unnumbered">Part 4: Batch Processing</h3>
+<p>For the rest of this lab we’ll use <code>temperature = 0</code>. We
+will now be coding the 100 rows</p>
+<p>Now loop the API call over all 100 rows. This is the core thing an
+API can do that a chat interface cannot: process data query by query at
+scale.</p>
+<p>The loop includes a short pause between calls
+(<code>Sys.sleep(0.5)</code>) to avoid hitting OpenAI’s rate limits, and
+wraps each call in <code>tryCatch()</code> so a single failed call
+doesn’t crash the whole loop. This might take a few minutes (2-3) to
+run. Take a break!</p>
+<pre class="r"><code># Create an empty list to store results, one slot per row
+results &lt;- vector(&quot;list&quot;, nrow(hm_sample))
+
+# Loop over every row in our sample
+for (i in seq_len(nrow(hm_sample))) {
+  
+  tryCatch({
+# calls API with the i-th happy moment
+    r &lt;- call_openai(hm_sample$cleaned_hm[i], temperature = 0)
+# extracts text content
+    raw &lt;- r$choices[[1]]$message$content
+# Parses JSON into an R list
+    parsed &lt;- fromJSON(raw)
+# Stores result into the results list
+    results[[i]] &lt;- parsed
+# If anything above failed, store NAs instead so the row isn&#39;t lost
+  }, error = function(e) {
+# The &lt;&lt;- assigns to results in the parent environment (outside the function)
+    results[[i]] &lt;&lt;- list(category = NA, confidence = NA)
+  })
+  
+  Sys.sleep(0.5)
+}
+
+# Bind results into the sample dataframe
+hm_coded &lt;- hm_sample %&gt;%
+  mutate(
+    llm_category   = map_chr(results, ~ .x$category %||% NA_character_),  
+    # %||% returns right side if left is NULL
+    llm_confidence = map_chr(results, ~ .x$confidence %||% NA_character_)
+  )
+
+glimpse(hm_coded)</code></pre>
+<ol start="6" style="list-style-type: decimal">
+<li>Did any calls fail (i.e., are there NAs in
+<code>llm_category</code>)? If so, why might a call fail? What does
+<code>tryCatch()</code> do and why is it important when making many API
+calls in a loop?</li>
+</ol>
+</div>
+<div id="part-5-evaluating-the-coding"
+class="section level3 unnumbered">
+<h3 class="unnumbered">Part 5: Evaluating the Coding</h3>
+<p>Now let’s see how well the LLM did. We have three codings to
+compare:</p>
+<ul>
+<li><code>ground_truth_category</code>: human majority-vote labels</li>
+<li><code>predicted_category</code>: HappyDB authors’ logistic
+regression classifier</li>
+<li><code>llm_category</code>: your LLM</li>
+</ul>
+<p>We can first compare the LLM with the ground truth</p>
+<pre class="r"><code>hm_coded %&gt;%
+  summarize(
+    accuracy = mean(llm_category == ground_truth_category, na.rm = TRUE)
+  )</code></pre>
+<pre class="r"><code>table(
+  human = hm_coded$ground_truth_category,
+  llm   = hm_coded$llm_category
+)</code></pre>
+<ol start="7" style="list-style-type: decimal">
+<li>What is the LLM’s overall accuracy against human labels? Look at the
+confusion matrix. Which categories does it get right most reliably?
+Which does it confuse most often?</li>
+</ol>
+<p>Then, compare the LLM labels against the HappyDB Classifer using a
+similar code to the previous exercise.</p>
+<ol start="8" style="list-style-type: decimal">
+<li>Does the LLM agree more with the human labels or with the HappyDB
+classifier? What might explain the difference?</li>
+</ol>
+<p>The HappyDB paper reported that their classifier struggled most with
+enjoy_the_moment (F1 = 54%) and nature (F1 = 63%).</p>
+<pre class="r"><code>hm_coded %&gt;%
+  group_by(ground_truth_category) %&gt;%
+  summarize(
+    n        = n(),
+    llm_accuracy = mean(llm_category == ground_truth_category, na.rm = TRUE)
+  ) %&gt;%
+  arrange(llm_accuracy)</code></pre>
+<ol start="9" style="list-style-type: decimal">
+<li>Does your LLM show the same pattern for enjoy_the_moment? (Nature
+may not have enough observations in your sample to say anything
+meaningful.)</li>
+</ol>
+<p>We can also compute the overall F1 scores, which looks at accuracy
+accounting for false positives / false negatives, and see if their
+logistic regression classifier did better than the LLMs. Here is a
+function to “manually” calculate the F1 scores.</p>
+<pre class="r"><code>macro_f1 &lt;- function(true, pred) {
+  categories &lt;- unique(true)
+  
+  f1_scores &lt;- map_dbl(categories, function(cat) {
+    tp &lt;- sum(pred == cat &amp; true == cat)
+    fp &lt;- sum(pred == cat &amp; true != cat)
+    fn &lt;- sum(pred != cat &amp; true == cat)
+    
+    precision &lt;- tp / (tp + fp)
+    recall    &lt;- tp / (tp + fn)
+    f1        &lt;- 2 * (precision * recall) / (precision + recall)
+    
+    f1
+  })
+  
+  mean(f1_scores, na.rm = TRUE)
+}
+
+# LLM vs human
+macro_f1(hm_coded$ground_truth_category, hm_coded$llm_category)
+
+# HappyDB classifier vs human
+macro_f1(hm_coded$ground_truth_category, hm_coded$predicted_category)</code></pre>
+<ol start="10" style="list-style-type: decimal">
+<li>Which did better, the LLM or the classifier? Are you surprised by
+this? (remember, this paper was out back in 2018)</li>
+</ol>
+<p>We also collected data on the LLM Confidence scores (i.e., the LLM’s
+subjective confidence in its labeling). Let’s see if confidence predicts
+accuracy.</p>
+<pre class="r"><code>hm_coded %&gt;%
+  group_by(llm_confidence) %&gt;%
+  summarize(
+    n        = n(),
+    accuracy = mean(llm_category == ground_truth_category, na.rm = TRUE)
+  )</code></pre>
+<ol start="11" style="list-style-type: decimal">
+<li>Does the LLM’s stated confidence predict its accuracy? How might
+collecting this confidence data help with qualitative coding involving
+human-in-the-loop?</li>
+</ol>
+</div>
+<div id="part-6-reflection" class="section level3">
+<h3>Part 6: Reflection</h3>
+<ol start="12" style="list-style-type: decimal">
+<li><p>The seven categories were chosen by the HappyDB authors based on
+positive psychology research and the contents of the data, but the paper
+doesn’t describe a rigorous qualitative methodology for arriving at
+them. What might be another way to come up with the categories? How
+might it be better or worse?</p></li>
+<li><p>Imagine you are a psychology researcher who wants to use LLM
+coding to analyze open-ended responses in a published study. Based on
+what you observed in this lab, what do you think of using LLMs for
+qualitative coding? Can their responses be trusted? Or should we leave
+this task to humans instead?</p></li>
+</ol>
+</div>
+</div>
+<div id="references" class="section level2">
+<h2>References</h2>
+<p>Asai, A., Evensen, S., Golshan, B., Halevy, A., Li, V., Lopatenko,
+A., Stepanov, D., Suhara, Y., Tan, W.-C., &amp; Xu, Y. (2018). HappyDB:
+A corpus of 100,000 crowdsourced happy moments. <em>Proceedings of LREC
+2018</em>.</p>
+</div>
+</div>
 
 
 

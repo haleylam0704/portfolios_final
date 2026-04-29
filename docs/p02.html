@@ -9,14 +9,16 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
+<meta name="author" content="Haley Lam" />
 
+<meta name="date" content="2026-02-13" />
 
-<title>Portfolio 2</title>
+<title>Visualizing Abstracts</title>
 
-<script src="site_libs/header-attrs-2.30/header-attrs.js"></script>
+<script src="site_libs/header-attrs-2.31/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link href="site_libs/bootstrap-3.3.5/css/bootstrap.min.css" rel="stylesheet" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
 <script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
@@ -278,6 +280,9 @@ $(document).ready(function () {
 <li>
   <a href="p10.html">Portfolio 10</a>
 </li>
+<li>
+  <a href="p11.html">Portfolio 11</a>
+</li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         
@@ -290,18 +295,140 @@ $(document).ready(function () {
 
 
 
-<h1 class="title toc-ignore">Portfolio 2</h1>
+<h1 class="title toc-ignore">Visualizing Abstracts</h1>
+<h4 class="author">Haley Lam</h4>
+<h4 class="date">2026-02-13</h4>
 
 </div>
 
 
-<blockquote>
-<p>The projects should be numbered consecutively (i.e., in the order in
-which you began them), and should include for each project a description
-of the goal, the product (computer program, hand graph, computer graph,
-etc.), the data, and some interpretation. Reports must be reproducible
-and of high quality in terms of writing, grammar, presentation, etc.</p>
-</blockquote>
+<p>The focus of this document is to compare word clouds between the
+three journals.</p>
+<div id="load-data" class="section level2">
+<h2>1) Load Data</h2>
+<p>Let’s first load the data.</p>
+<p>How many rows actually have abstracts?</p>
+<pre class="r"><code>sum(!is.na(combined$Abstract))</code></pre>
+<pre><code>## [1] 2198</code></pre>
+<p>We have 2198 available abstracts.</p>
+</div>
+<div id="tokenize-abstracts-into-individual-words"
+class="section level2">
+<h2>2) Tokenize Abstracts into Individual Words</h2>
+<p>Split each word in an abrstract into one row per word.</p>
+<pre class="r"><code>words &lt;- combined %&gt;%
+        filter(!is.na(Abstract)) %&gt;%
+        select(Journal, Abstract) %&gt;%
+        unnest_tokens(word, Abstract)</code></pre>
+<p>We now have 57320 rows (i.e., words)!</p>
+<p>Here is where I realized that the abstracts were truncated. So, these
+are not full abstracts, possibly because of publish &amp; perish
+limitations.</p>
+</div>
+<div id="remove-stop-words" class="section level2">
+<h2>3) Remove “Stop Words”</h2>
+<p>There’s this dataset from the tidytext package that contains common
+words like “the”, “and”, “is” etc. We can use anti_join to remove those
+words, since they aren’t of interest for our word cloud.</p>
+<pre class="r"><code>words &lt;- words %&gt;% 
+        anti_join(stop_words, by = &quot;word&quot;)</code></pre>
+<p>There are now 30230 number of words remaining.</p>
+<p>Here are the top words:</p>
+<pre class="r"><code>words %&gt;%
+        count(word, sort = TRUE) %&gt;%
+        head(20)</code></pre>
+<pre><code>## # A tibble: 20 × 2
+##    word              n
+##    &lt;chr&gt;         &lt;int&gt;
+##  1 research        535
+##  2 social          418
+##  3 people          412
+##  4 studies         303
+##  5 examined        191
+##  6 individuals     172
+##  7 study           171
+##  8 personality     152
+##  9 moral           128
+## 10 life            118
+## 11 current         117
+## 12 psychological   116
+## 13 behavior        112
+## 14 relationship    112
+## 15 relationships   103
+## 16 article          98
+## 17 attitudes        96
+## 18 investigated     93
+## 19 political        89
+## 20 people&#39;s         87</code></pre>
+</div>
+<div id="make-the-clouds" class="section level2">
+<h2>4) Make the Clouds</h2>
+<p>First, let’s do JPSP:</p>
+<pre class="r"><code>jpsp_freq &lt;- words %&gt;%
+        filter(Journal == &quot;JPSP&quot;) %&gt;%
+        count(word, sort = TRUE) %&gt;%
+        head(80)
+
+wordcloud(
+        words = jpsp_freq$word,
+        freq = jpsp_freq$n,
+        max.words = 80,
+        scale = c(2, 0.3),
+        colors = brewer.pal(8, &quot;Dark2&quot;)
+)</code></pre>
+<p><img src="p02_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
+<p>Next, let’s do PSPB:</p>
+<pre class="r"><code>pspb_freq &lt;- words %&gt;%
+        filter(Journal == &quot;PSPB&quot;) %&gt;%
+        count(word, sort = TRUE) %&gt;%
+        head(80)
+
+wordcloud(
+        words = pspb_freq$word,
+        freq = pspb_freq$n,
+        max.words = 80,
+        scale = c(2, 0.3),
+        colors = brewer.pal(8, &quot;Dark2&quot;)
+)</code></pre>
+<p><img src="p02_files/figure-html/unnamed-chunk-6-1.png" width="672" /></p>
+<p>Lastly, SPPS:</p>
+<pre class="r"><code>spps_freq &lt;- words %&gt;%
+        filter(Journal == &quot;SPPS&quot;) %&gt;%
+        count(word, sort = TRUE) %&gt;%
+        head(80)
+
+wordcloud(
+        words = spps_freq$word,
+        freq = spps_freq$n,
+        max.words = 80,
+        scale = c(2, 0.3),
+        colors = brewer.pal(8, &quot;Dark2&quot;)
+)</code></pre>
+<p><img src="p02_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<p>It isn’t actually very clear from those word clouds. They look
+similar. Let’s try another format:</p>
+<pre class="r"><code>top_words &lt;- words %&gt;%
+        count(Journal, word, sort = TRUE) %&gt;%
+        group_by(Journal) %&gt;%
+        slice_max(n, n = 15) %&gt;%
+        ungroup() %&gt;%
+        mutate(word_ordered = reorder_within(word, n, Journal))
+
+ggplot(top_words, aes(x = word_ordered, y = n, fill = Journal)) +
+        geom_col(show.legend = FALSE) + 
+        coord_flip() + 
+        facet_wrap(~ Journal, scales = &quot;free_y&quot;) + 
+        scale_x_reordered() +
+        labs(x = NULL, y = &quot;Count&quot;, title = &quot;Most Frequent Abstract Words by Journal&quot;) +
+        theme_minimal()</code></pre>
+<p><img src="p02_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
+<p>JPSP interestingly mentions “social” more than the other two
+journals, but also “personality”! “Relationship” consistently showed up
+on all three, which I assume is mostly the statistical kind of
+“relationship” rather than human relationships. The other words are
+mostly ones that are expected to appear within all kinds of research
+(e.g., studies/study, individuals, etc.).</p>
+</div>
 
 
 
