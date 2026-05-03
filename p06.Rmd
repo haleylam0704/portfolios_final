@@ -102,10 +102,10 @@ ols_adj <- lm(MH ~ SM + W, data = df_post)
 # Regression 3: DiD Regression (Using the full panel data and interaction term)
 did_reg <- lm(MH ~ Treat * Post, data = df)
 
-cat("1. OLS (Naive) SM Coefficient     :", round(coef(ols_naive)["SM"], 4), "\n")
-cat("2. OLS (Adjusted) SM Coefficient  :", round(coef(ols_adj)["SM"], 4), "\n")
-cat("3. DiD (Treat:Post) Coefficient   :", round(coef(did_reg)["Treat:Post"], 4), "\n")
-cat("True Causal Effect (delta)        :", delta, "\n")
+coef(ols_naive)["SM"]
+coef(ols_adj)["SM"]
+coef(did_reg)["Treat:Post"]
+delta
 ```
 
 As you can see, the estimate from the DiD is much closer to the true causal effect.
