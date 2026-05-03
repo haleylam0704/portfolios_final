@@ -11,7 +11,7 @@
 
 <meta name="author" content="Haley Lam" />
 
-<meta name="date" content="2026-04-29" />
+<meta name="date" content="2026-05-02" />
 
 <title>Simulation for the Effects of Social Media on Mental Health (Pt 1)</title>
 
@@ -298,7 +298,7 @@ $(document).ready(function () {
 <h1 class="title toc-ignore">Simulation for the Effects of Social Media
 on Mental Health (Pt 1)</h1>
 <h4 class="author">Haley Lam</h4>
-<h4 class="date">2026-04-29</h4>
+<h4 class="date">2026-05-02</h4>
 
 </div>
 
@@ -416,14 +416,17 @@ ols_adj &lt;- lm(MH ~ SM + W, data = df_post)
 # Regression 3: DiD Regression (Using the full panel data and interaction term)
 did_reg &lt;- lm(MH ~ Treat * Post, data = df)
 
-cat(&quot;1. OLS (Naive) SM Coefficient     :&quot;, round(coef(ols_naive)[&quot;SM&quot;], 4), &quot;\n&quot;)</code></pre>
-<pre><code>## 1. OLS (Naive) SM Coefficient     : 0.3448</code></pre>
-<pre class="r"><code>cat(&quot;2. OLS (Adjusted) SM Coefficient  :&quot;, round(coef(ols_adj)[&quot;SM&quot;], 4), &quot;\n&quot;)</code></pre>
-<pre><code>## 2. OLS (Adjusted) SM Coefficient  : 0.3093</code></pre>
-<pre class="r"><code>cat(&quot;3. DiD (Treat:Post) Coefficient   :&quot;, round(coef(did_reg)[&quot;Treat:Post&quot;], 4), &quot;\n&quot;)</code></pre>
-<pre><code>## 3. DiD (Treat:Post) Coefficient   : 0.1141</code></pre>
-<pre class="r"><code>cat(&quot;True Causal Effect (delta)        :&quot;, delta, &quot;\n&quot;)</code></pre>
-<pre><code>## True Causal Effect (delta)        : 0.085</code></pre>
+coef(ols_naive)[&quot;SM&quot;]</code></pre>
+<pre><code>##        SM 
+## 0.3447804</code></pre>
+<pre class="r"><code>coef(ols_adj)[&quot;SM&quot;]</code></pre>
+<pre><code>##       SM 
+## 0.309343</code></pre>
+<pre class="r"><code>coef(did_reg)[&quot;Treat:Post&quot;]</code></pre>
+<pre><code>## Treat:Post 
+##  0.1141245</code></pre>
+<pre class="r"><code>delta</code></pre>
+<pre><code>## [1] 0.085</code></pre>
 <p>As you can see, the estimate from the DiD is much closer to the true
 causal effect.</p>
 </div>

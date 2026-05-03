@@ -9,14 +9,16 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
+<meta name="author" content="Haley Lam" />
 
+<meta name="date" content="2026-05-02" />
 
-<title>Portfolio 10</title>
+<title>Simulation for the Effects of Alcohol on Mental Health (RDD)</title>
 
 <script src="site_libs/header-attrs/header-attrs.js"></script>
 <script src="site_libs/jquery/jquery-3.6.0.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link href="site_libs/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+<link href="site_libs/bootstrap/css/cosmo.min.css" rel="stylesheet" />
 <script src="site_libs/bootstrap/js/bootstrap.min.js"></script>
 <script src="site_libs/bootstrap/shim/html5shiv.min.js"></script>
 <script src="site_libs/bootstrap/shim/respond.min.js"></script>
@@ -293,109 +295,198 @@ $(document).ready(function () {
 
 
 
-<h1 class="title toc-ignore">Portfolio 10</h1>
+<h1 class="title toc-ignore">Simulation for the Effects of Alcohol on
+Mental Health (RDD)</h1>
+<h4 class="author">Haley Lam</h4>
+<h4 class="date">2026-05-02</h4>
 
 </div>
 
 
-<blockquote>
-<p>The projects should be numbered consecutively (i.e., in the order in
-which you began them), and should include for each project a description
-of the goal, the product (computer program, hand graph, computer graph,
-etc.), the data, and some interpretation. Reports must be reproducible
-and of high quality in terms of writing, grammar, presentation, etc.</p>
-</blockquote>
-<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed
-hendrerit purus ut dapibus vestibulum. Suspendisse potenti. Cras
-faucibus mauris in leo condimentum lobortis. Cras euismod sollicitudin
-augue, ut venenatis quam placerat eu. Maecenas vulputate rhoncus odio,
-in interdum risus malesuada gravida. Maecenas cursus sed dui sit amet
-lacinia. Nunc dignissim metus nec ex mattis, non rutrum urna cursus.
-Morbi pretium elementum purus, in aliquet libero eleifend ac. Nam
-finibus, ligula sed ultrices pharetra, tellus risus consequat tortor,
-facilisis maximus elit lectus a metus. Sed vel dictum nulla, vitae
-blandit turpis. Integer pulvinar tempor diam ac venenatis. Vestibulum
-est lacus, suscipit et ipsum nec, consectetur iaculis leo. Morbi libero
-lacus, scelerisque non sollicitudin vitae, accumsan sed tellus.
-Suspendisse quis orci tellus.</p>
-<div id="r-markdown" class="section level2">
-<h2>R Markdown</h2>
-<p>This is an R Markdown document. Markdown is a simple formatting
-syntax for authoring HTML, PDF, and MS Word documents. For more details
-on using R Markdown see <a href="http://rmarkdown.rstudio.com"
-class="uri">http://rmarkdown.rstudio.com</a>.</p>
-<p>When you click the <strong>Knit</strong> button a document will be
-generated that includes both content as well as the output of any
-embedded R code chunks within the document. You can embed an R code
-chunk like this:</p>
-<pre class="r"><code>summary(cars)</code></pre>
-<pre><code>##      speed           dist    
-##  Min.   : 4.0   Min.   :  2  
-##  1st Qu.:12.0   1st Qu.: 26  
-##  Median :15.0   Median : 36  
-##  Mean   :15.4   Mean   : 43  
-##  3rd Qu.:19.0   3rd Qu.: 56  
-##  Max.   :25.0   Max.   :120</code></pre>
-<p>Maecenas luctus convallis efficitur. Vestibulum pharetra laoreet nibh
-non congue. Etiam ornare, neque sit amet condimentum aliquet, odio ipsum
-porttitor elit, eu malesuada turpis augue sit amet arcu. Integer nec
-quam et massa congue tincidunt. Donec sit amet diam placerat, pharetra
-quam nec, ornare nisl. Quisque erat turpis, imperdiet eget tellus non,
-interdum ultricies nisi. Fusce a erat est. Nunc sollicitudin ante non
-eros vulputate, sed eleifend nulla hendrerit. Nam ac quam nulla.
-Praesent a ligula a justo auctor tristique ac vel neque. Class aptent
-taciti sociosqu ad litora torquent per conubia nostra, per inceptos
-himenaeos. Quisque tempor felis sed lorem efficitur volutpat. Aliquam
-lectus diam, lacinia vitae velit eget, pulvinar porta massa. Curabitur
-nec egestas mi.</p>
+<p>Does access to alcohol affect psychological well-being? We’ll be
+using the Regression Discontinuity Design (RDD) to answer the question.
+This methodology interestingly has roots in psychology, but gained
+popularity in other social sciences. The design requires a natural
+threshold (e.g., the legal drinking age of 21). Yörük &amp; Yörük (2012)
+used the RDD for this very question, and we’ll run a simulation to
+compare the effects for an OLS vs. the RDD. It will be very similar to
+portfolios #6 and #7 (the social media DiD simulation).</p>
+<div id="set-environment-and-parameters" class="section level2">
+<h2>1. Set Environment and Parameters</h2>
+<pre class="r"><code>library(ggplot2)
+library(tidyverse)
+
+# Color
+COL_BIAS   &lt;- &quot;#E41A1C&quot;   # red  — biased OLS
+COL_RDD    &lt;- &quot;#377EB8&quot;   # blue — RDD estimate
+COL_TRUE   &lt;- &quot;#333333&quot;   # dark gray — our defined true effect
+
+# --- DGP Parameters ---
+N          &lt;- 5000     # individuals
+delta      &lt;- 0.00     # TRUE causal effect of alcohol on MH (null effect, from Yörük &amp; Yörük 2012)
+gamma_u    &lt;- 0.40     # unobserved confounder strength (e.g., neuroticism, pre-existing MH)
+gamma_w    &lt;- 0.20     # observed confounder strength (e.g., sex, parental education)
+cutoff     &lt;- 21       # drinking age threshold
+bw         &lt;- 2        # RDD bandwidth (years on either side of cutoff)</code></pre>
 </div>
-<div id="including-plots" class="section level2">
-<h2>Including Plots</h2>
-<p>You can also embed plots, for example:</p>
-<p><img src="p10_files/figure-html/pressure-1.png" width="672" /></p>
-<p>Note that the <code>echo = FALSE</code> parameter was added to the
-code chunk to prevent printing of the R code that generated the
-plot.</p>
-<p>Morbi tincidunt mollis odio sit amet feugiat. Ut vel risus eu ante
-dictum consequat. Integer et luctus mauris. Donec nec faucibus urna, sed
-commodo risus. Nam elementum pulvinar erat, eget convallis est blandit
-vel. Etiam gravida sapien eu massa hendrerit maximus. Proin dolor quam,
-porta vitae libero non, venenatis porta tellus. Vivamus et elit a est
-aliquet consequat. Proin tempus, purus quis suscipit placerat, dui nunc
-euismod dui, sit amet luctus leo lectus in risus. Phasellus consectetur
-eleifend arcu. Nullam venenatis blandit nulla ut ullamcorper. Vestibulum
-eu arcu quis massa scelerisque sodales in ac augue. Quisque dapibus
-fringilla turpis, ut cursus tortor cursus sed. Sed facilisis quam eget
-neque viverra venenatis. Suspendisse ut lorem nec erat elementum
-bibendum. Curabitur lobortis purus in cursus blandit.</p>
-<p>Aliquam sed ex et lorem consequat feugiat at porta leo. Fusce id
-hendrerit tellus. Maecenas dictum felis neque, quis dictum metus
-tristique eu. Vivamus sed blandit nisl. Integer ut urna dolor. Cras in
-egestas eros, in aliquam nisi. Duis vitae elementum quam. Vivamus vel
-turpis commodo, porttitor urna vitae, viverra sem. Nam nec dignissim
-erat, id viverra libero. Integer vel lectus pellentesque tortor
-fringilla posuere. Vivamus quis magna accumsan, porta tortor at, aliquam
-urna. Aliquam vestibulum ante massa, ut gravida lectus sagittis
-vitae.</p>
-<p>Sed eget ipsum auctor, gravida magna sit amet, tincidunt mi. Nulla
-erat ante, volutpat nec sem eget, luctus posuere est. Praesent convallis
-nunc ac turpis bibendum, in maximus magna convallis. Vestibulum ante
-ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae;
-Sed sit amet nulla ante. Sed elit sem, lobortis nec nisi a, rhoncus
-ornare nunc. Curabitur ultrices neque feugiat, facilisis magna eu,
-consectetur magna. Mauris id eleifend ex.</p>
-<p>Morbi tincidunt mollis odio sit amet feugiat. Ut vel risus eu ante
-dictum consequat. Integer et luctus mauris. Donec nec faucibus urna, sed
-commodo risus. Nam elementum pulvinar erat, eget convallis est blandit
-vel. Etiam gravida sapien eu massa hendrerit maximus. Proin dolor quam,
-porta vitae libero non, venenatis porta tellus. Vivamus et elit a est
-aliquet consequat. Proin tempus, purus quis suscipit placerat, dui nunc
-euismod dui, sit amet luctus leo lectus in risus. Phasellus consectetur
-eleifend arcu. Nullam venenatis blandit nulla ut ullamcorper. Vestibulum
-eu arcu quis massa scelerisque sodales in ac augue. Quisque dapibus
-fringilla turpis, ut cursus tortor cursus sed. Sed facilisis quam eget
-neque viverra venenatis. Suspendisse ut lorem nec erat elementum
-bibendum. Curabitur lobortis purus in cursus blandit.</p>
+<div id="generate-the-data" class="section level2">
+<h2>2. Generate the Data</h2>
+<p>The ‘running variable’ is age (in years, centered on 21). The
+treatment is legal alcohol access a sharp indicator that turns on at age
+21. The key RDD assumption is that all individual characteristics
+(observed and unobserved) progress smoothly through the cutoff, and the
+variable of interest (legal access) is the only thing that jumps
+discontinuously.</p>
+<pre class="r"><code>set.seed(123)
+
+df &lt;- tibble(
+  # Running variable (age in years from 19 to 23)
+  age = runif(N, 19, 23),
+  # Center age on the cutoff
+  age_c = age - cutoff,
+  # Treatment (sharp RDD)
+  D = as.integer(age &gt;= cutoff),
+  # Unobserved confounder (e.g., neuroticism, pre-existing mental health vulnerability)
+  U = rnorm(N),
+  # Observed confounder (demographics like sex, parental education, etc.)
+  W = rnorm(N),
+  # First stage: alcohol use jumps at 21
+  # Here we express it as drinking days per month (Yörük &amp; Yörük 2012 find +1.5 days)
+  alcohol = 0.20 * W + gamma_u * U + 1.5 * D + rnorm(N, sd = 0.5),
+  # Mental health outcome (higher = worse, e.g. a depression scale)
+  # TRUE effect of alcohol = 0 (delta). Confounders U and W affect MH directly.
+  MH = delta * alcohol + gamma_u * U + gamma_w * W + rnorm(N, sd = 0.5)
+)
+
+head(df)</code></pre>
+<pre><code>## # A tibble: 6 × 7
+##     age  age_c     D      U      W alcohol     MH
+##   &lt;dbl&gt;  &lt;dbl&gt; &lt;int&gt;  &lt;dbl&gt;  &lt;dbl&gt;   &lt;dbl&gt;  &lt;dbl&gt;
+## 1  20.2 -0.850     0 -0.679  0.350  -0.196 -0.597
+## 2  22.2  1.15      1  0.574  0.814   2.67   0.226
+## 3  20.6 -0.364     0 -0.705 -0.517  -0.179 -0.108
+## 4  22.5  1.53      1 -0.534 -2.69    0.154 -0.201
+## 5  22.8  1.76      1  0.774 -1.10    1.95  -0.227
+## 6  19.2 -1.82      0 -0.476 -1.26   -0.149 -0.485</code></pre>
+</div>
+<div id="whats-the-difference-between-rdd-and-ols"
+class="section level2">
+<h2>3. What’s the difference between RDD and OLS?</h2>
+<p>In observational data, researchers typically regress mental health on
+alcohol use, adding whatever covariates they have. The problem is, U
+(neuroticism, pre-existing vulnerability) is unobserved, so it sits in
+the error term. Since U predicts both drinking AND mental health, OLS is
+biased upward.</p>
+<pre class="r"><code># Match RDD sample 19-23
+df_bw &lt;- df %&gt;% 
+  filter(age &gt;= 19 &amp; age &lt;= 23)
+
+# Model 1: Naive OLS (no controls)
+ols_naive &lt;- lm(MH ~ alcohol, data = df_bw)
+
+# Model 2: Adjusted OLS (controlling for observed W, but U is unobserved so bias remains)
+ols_adj &lt;- lm(MH ~ alcohol + W, data = df_bw)
+
+coef(ols_naive)[&quot;alcohol&quot;]</code></pre>
+<pre><code>## alcohol 
+##    0.19</code></pre>
+<pre class="r"><code>coef(ols_adj)[&quot;alcohol&quot;]</code></pre>
+<pre><code>## alcohol 
+##    0.15</code></pre>
+<pre class="r"><code>delta</code></pre>
+<pre><code>## [1] 0</code></pre>
+<p>Both OLS estimates are inflated above zero because U (the unobserved
+confounder) creates a spurious correlation between drinking and poor
+mental health. A researcher without the RDD would might conclude that
+alcohol predicts worse psychological well-being (and people will
+interpret that causally!).</p>
+</div>
+<div id="the-rdd-solution" class="section level2">
+<h2>4. The RDD Solution</h2>
+<p>The legal drinking age creates a sharp discontinuity in legal alcohol
+access at age 21. Since people cannot manipulate their exact birthday,
+individuals just under and just over 21 are assumed to be identical on
+all characteristics, including the unobserved U. Any jump in mental
+health outcomes at the threshold can therefore be causally attributed to
+legal alcohol access.</p>
+<p>We implement a simple parametric RDD: regress MH on the treatment
+indicator (D) and a linear function of centered age, allowing the slope
+to differ on each side of the cutoff.</p>
+<pre class="r"><code># RDD within bandwidth
+rdd_model &lt;- lm(MH ~ D + age_c + D:age_c, data = df_bw)
+
+coef(rdd_model)[&quot;D&quot;]</code></pre>
+<pre><code>##      D 
+## -0.052</code></pre>
+<pre class="r"><code>delta</code></pre>
+<pre><code>## [1] 0</code></pre>
+<p>The RDD estimate is close(er) to zero, correctly recovering the null
+effect (consistent with Yörük &amp; Yörük, 2012).</p>
+</div>
+<div id="monte-carlo-simulation" class="section level2">
+<h2>5. Monte Carlo Simulation</h2>
+<p>Just as in the social media portfolio, we now run 1,000 simulated
+datasets to compare the sampling distributions of OLS and RDD. The true
+effect is zero, so a good estimator should be centered on zero. A biased
+estimator will not be.</p>
+<pre class="r"><code>set.seed(471)
+n_sims &lt;- 1000
+
+results &lt;- tibble(
+  sim       = 1:n_sims,
+  ols_naive = NA_real_,
+  ols_adj   = NA_real_,
+  rdd       = NA_real_
+)
+
+for (i in 1:n_sims) {
+  # Generate sample
+  d &lt;- tibble(
+    age_c   = runif(N, -2, 2),
+    D       = as.integer(age_c &gt;= 0),
+    U       = rnorm(N),
+    W       = rnorm(N),
+    alcohol = 0.20 * W + gamma_u * U + 1.5 * D + rnorm(N, sd = 0.5),
+    MH      = delta * alcohol + gamma_u * U + gamma_w * W + rnorm(N, sd = 0.5)
+  )
+
+  results$ols_naive[i] &lt;- coef(lm(MH ~ alcohol, data = d))[&quot;alcohol&quot;]
+  results$ols_adj[i]   &lt;- coef(lm(MH ~ alcohol + W, data = d))[&quot;alcohol&quot;]
+  results$rdd[i]       &lt;- coef(lm(MH ~ D + age_c + D:age_c, data = d))[&quot;D&quot;]
+}
+
+mean(results$ols_naive)</code></pre>
+<pre><code>## [1] 0.2</code></pre>
+<pre class="r"><code>mean(results$ols_adj)</code></pre>
+<pre><code>## [1] 0.16</code></pre>
+<pre class="r"><code>mean(results$rdd)</code></pre>
+<pre><code>## [1] 0.0015</code></pre>
+<pre class="r"><code>delta</code></pre>
+<pre><code>## [1] 0</code></pre>
+<p>The RDD results are now even closer to 0, and the other OLS
+regressions remain biased.</p>
+<p>Now, let’s plot a similar plot.</p>
+<pre class="r"><code>results_long &lt;- results %&gt;%
+  pivot_longer(cols = c(ols_naive, ols_adj, rdd),
+               names_to = &quot;estimator&quot;, values_to = &quot;estimate&quot;) %&gt;%
+  mutate(estimator = factor(estimator,
+                            levels = c(&quot;ols_naive&quot;, &quot;ols_adj&quot;, &quot;rdd&quot;),
+                            labels = c(&quot;OLS (no controls)&quot;, &quot;OLS (with W)&quot;, &quot;RDD&quot;)))
+
+fig_mc &lt;- ggplot(results_long, aes(x = estimate, fill = estimator)) +
+  geom_density(alpha = 0.5, color = NA) +
+  geom_vline(xintercept = 0, linetype = &quot;dashed&quot;, color = COL_TRUE, linewidth = 0.8) +
+  annotate(&quot;text&quot;, x = 0, y = Inf, label = &quot;True effect = 0&quot;,
+           vjust = 1.5, hjust = -0.1, size = 3.5, color = COL_TRUE) +
+  scale_fill_manual(values = c(&quot;OLS (no controls)&quot; = COL_BIAS,
+                               &quot;OLS (with W)&quot; = &quot;#FF9999&quot;,
+                               &quot;RDD&quot; = COL_RDD))
+
+fig_mc</code></pre>
+<p><img src="p10_files/figure-html/unnamed-chunk-6-1.png" width="672" /></p>
+<p>OLS is systematically shifted right (i.e., it finds a positive effect
+of alcohol on mental health that does not exist). The RDD distribution
+is centered on zero, correctly recovering the null.</p>
 </div>
 
 

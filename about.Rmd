@@ -15,5 +15,4 @@ title: "About This Website"
 | 7 | [A Diff-In-Diff Event Study for the Effects of Social Media on Mental Health (Pt 2)](p07.html) |
 | 8 | [Robustness Checks for the Effects of Social Media on Mental Health](p08.html) |
 | 9 | [Using LLMs for Qualitative Coding](p09.html) |
-| 10 | [Portfolio 10](p10.html) |
-| 11 | [Portfolio 11](p11.html) |
+| 10 | [Simulation for the Effects of Alcohol on Mental Health (RDD)](p10.html) |
